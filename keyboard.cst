@@ -1,0 +1,65 @@
+extern fn SDL_GetKeyboardState(numkeys as *i32) as *u8;
+extern fn SDL_GetKeyboardFocus() as *u8;
+extern fn SDL_GetKeyName(key as i32) as *u8;
+extern fn SDL_IsTextInputActive(window as *u8) as i32;
+
+let is i32 as SCANCODE_A with imut = 4;
+let is i32 as SCANCODE_B with imut = 5;
+let is i32 as SCANCODE_C with imut = 6;
+let is i32 as SCANCODE_D with imut = 7;
+let is i32 as SCANCODE_E with imut = 8;
+let is i32 as SCANCODE_F with imut = 9;
+let is i32 as SCANCODE_G with imut = 10;
+let is i32 as SCANCODE_H with imut = 11;
+let is i32 as SCANCODE_I with imut = 12;
+let is i32 as SCANCODE_J with imut = 13;
+let is i32 as SCANCODE_K with imut = 14;
+let is i32 as SCANCODE_L with imut = 15;
+let is i32 as SCANCODE_M with imut = 16;
+let is i32 as SCANCODE_N with imut = 17;
+let is i32 as SCANCODE_O with imut = 18;
+let is i32 as SCANCODE_P with imut = 19;
+let is i32 as SCANCODE_Q with imut = 20;
+let is i32 as SCANCODE_R with imut = 21;
+let is i32 as SCANCODE_S with imut = 22;
+let is i32 as SCANCODE_T with imut = 23;
+let is i32 as SCANCODE_U with imut = 24;
+let is i32 as SCANCODE_V with imut = 25;
+let is i32 as SCANCODE_W with imut = 26;
+let is i32 as SCANCODE_X with imut = 27;
+let is i32 as SCANCODE_Y with imut = 28;
+let is i32 as SCANCODE_Z with imut = 29;
+
+let is i32 as SCANCODE_1 with imut = 30;
+let is i32 as SCANCODE_2 with imut = 31;
+let is i32 as SCANCODE_3 with imut = 32;
+let is i32 as SCANCODE_4 with imut = 33;
+let is i32 as SCANCODE_5 with imut = 34;
+let is i32 as SCANCODE_6 with imut = 35;
+let is i32 as SCANCODE_7 with imut = 36;
+let is i32 as SCANCODE_8 with imut = 37;
+let is i32 as SCANCODE_9 with imut = 38;
+let is i32 as SCANCODE_0 with imut = 39;
+
+let is i32 as SCANCODE_RETURN with imut = 40;
+let is i32 as SCANCODE_ESCAPE with imut = 41;
+let is i32 as SCANCODE_BACKSPACE with imut = 42;
+let is i32 as SCANCODE_TAB with imut = 43;
+let is i32 as SCANCODE_SPACE with imut = 44;
+
+let is i32 as SCANCODE_RIGHT with imut = 79;
+let is i32 as SCANCODE_LEFT with imut = 80;
+let is i32 as SCANCODE_DOWN with imut = 81;
+let is i32 as SCANCODE_UP with imut = 82;
+
+let is i32 as SCANCODE_LCTRL with imut = 224;
+let is i32 as SCANCODE_LSHIFT with imut = 225;
+let is i32 as SCANCODE_LALT with imut = 226;
+let is i32 as SCANCODE_RCTRL with imut = 228;
+let is i32 as SCANCODE_RSHIFT with imut = 229;
+let is i32 as SCANCODE_RALT with imut = 230;
+
+fn get_state(numkeys as *i32) as *u8 { return SDL_GetKeyboardState(numkeys); }
+fn get_focus() as *u8 { return SDL_GetKeyboardFocus(); }
+fn key_name(key as i32) as *u8 { return SDL_GetKeyName(key); }
+fn is_text_input_active(window as *u8) as i32 { return SDL_IsTextInputActive(window); }

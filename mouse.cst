@@ -1,0 +1,28 @@
+extern fn SDL_GetMouseState(x as *u8, y as *u8) as i32;
+extern fn SDL_GetGlobalMouseState(x as *u8, y as *u8) as i32;
+extern fn SDL_GetRelativeMouseState(x as *u8, y as *u8) as i32;
+extern fn SDL_WarpMouseInWindow(window as *u8, x as f32, y as f32) as i32;
+extern fn SDL_SetRelativeMouseMode(enabled as i32) as i32;
+extern fn SDL_GetRelativeMouseMode() as i32;
+extern fn SDL_CreateSystemCursor(id as i32) as *u8;
+extern fn SDL_SetCursor(cursor as *u8) as i32;
+extern fn SDL_ShowCursor() as i32;
+extern fn SDL_HideCursor() as i32;
+
+let is i32 as BUTTON_LEFT with imut = 1;
+let is i32 as BUTTON_MIDDLE with imut = 2;
+let is i32 as BUTTON_RIGHT with imut = 3;
+let is i32 as BUTTON_X1 with imut = 4;
+let is i32 as BUTTON_X2 with imut = 5;
+
+let is i32 as SYSTEM_CURSOR_DEFAULT with imut = 0;
+let is i32 as SYSTEM_CURSOR_TEXT with imut = 1;
+let is i32 as SYSTEM_CURSOR_WAIT with imut = 2;
+let is i32 as SYSTEM_CURSOR_CROSSHAIR with imut = 3;
+let is i32 as SYSTEM_CURSOR_POINTER with imut = 11;
+
+fn get_state(x as *u8, y as *u8) as i32 { return SDL_GetMouseState(x, y); }
+fn warp(window as *u8, x as f32, y as f32) as i32 { return SDL_WarpMouseInWindow(window, x, y); }
+fn set_relative(enabled as i32) as i32 { return SDL_SetRelativeMouseMode(enabled); }
+fn show() as i32 { return SDL_ShowCursor(); }
+fn hide() as i32 { return SDL_HideCursor(); }

@@ -1,0 +1,25 @@
+// rect.cst
+
+// Create an SDL_Rect (16 bytes: x, y, w, h as i32) in a buffer
+fn make(buf as *u8, x as i32, y as i32, w as i32, h as i32) as void {
+    let is *i32 as px = cast(*i32, buf);
+    *px = x;
+    let is *i32 as py = cast(*i32, cast(i64, buf) + 4);
+    *py = y;
+    let is *i32 as pw = cast(*i32, cast(i64, buf) + 8);
+    *pw = w;
+    let is *i32 as ph = cast(*i32, cast(i64, buf) + 12);
+    *ph = h;
+}
+
+// Create an SDL_FRect (16 bytes: x, y, w, h as f32) in a buffer
+fn makef(buf as *u8, x as f32, y as f32, w as f32, h as f32) as void {
+    let is *f32 as px = cast(*f32, buf);
+    *px = x;
+    let is *f32 as py = cast(*f32, cast(i64, buf) + 4);
+    *py = y;
+    let is *f32 as pw = cast(*f32, cast(i64, buf) + 8);
+    *pw = w;
+    let is *f32 as ph = cast(*f32, cast(i64, buf) + 12);
+    *ph = h;
+}

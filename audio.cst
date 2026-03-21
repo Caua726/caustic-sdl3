@@ -1,0 +1,33 @@
+// audio.cst
+extern fn SDL_OpenAudioDeviceStream(devid as i32, spec as *u8, callback as *u8, userdata as *u8) as *u8;
+extern fn SDL_ResumeAudioStreamDevice(stream as *u8) as i32;
+extern fn SDL_PutAudioStreamData(stream as *u8, data as *u8, len as i32) as i32;
+extern fn SDL_DestroyAudioStream(stream as *u8) as void;
+
+// Constants
+let is i32 as AUDIO_DEVICE_DEFAULT_PLAYBACK with imut = 0 - 1;
+let is i32 as AUDIO_S16LE with imut = 32784;
+
+// Convenience: open default device, no callback (queue-based)
+fn open_stream(freq as i32) as *u8 {
+    let is [12]u8 as spec;
+    let is *i32 as fmt = cast(*i32, &spec);
+    *fmt = AUDIO_S16LE;
+    let is *i32 as ch = cast(*i32, cast(i64, &spec) + 4);
+    *ch = 2;
+    let is *i32 as fr = cast(*i32, cast(i64, &spec) + 8);
+    *fr = freq;
+    return SDL_OpenAudioDeviceStream(AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, cast(*u8, 0), cast(*u8, 0));
+}
+
+fn queue(stream as *u8, data as *u8, len as i32) as i32 {
+    return SDL_PutAudioStreamData(stream, data, len);
+}
+
+fn resume(stream as *u8) as i32 {
+    return SDL_ResumeAudioStreamDevice(stream);
+}
+
+fn close(stream as *u8) as void {
+    SDL_DestroyAudioStream(stream);
+}

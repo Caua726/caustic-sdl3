@@ -6,3 +6,9 @@ target "hello_window" {
     out "hello_window"
     flags "-lSDL3"
 }
+
+target "draw_rects" {
+    src "examples/draw_rects.cst"
+    out "draw_rects"
+    flags "-lSDL3"
+}

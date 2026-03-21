@@ -1,0 +1,38 @@
+extern fn SDL_OpenGamepad(instance_id as i32) as *u8;
+extern fn SDL_CloseGamepad(gamepad as *u8) as void;
+extern fn SDL_GetGamepadAxis(gamepad as *u8, axis as i32) as i32;
+extern fn SDL_GetGamepadButton(gamepad as *u8, button as i32) as i32;
+extern fn SDL_GetGamepadName(gamepad as *u8) as *u8;
+extern fn SDL_GamepadConnected(gamepad as *u8) as i32;
+extern fn SDL_GetGamepads(count as *i32) as *u8;
+
+let is i32 as AXIS_LEFTX with imut = 0;
+let is i32 as AXIS_LEFTY with imut = 1;
+let is i32 as AXIS_RIGHTX with imut = 2;
+let is i32 as AXIS_RIGHTY with imut = 3;
+let is i32 as AXIS_LEFT_TRIGGER with imut = 4;
+let is i32 as AXIS_RIGHT_TRIGGER with imut = 5;
+
+let is i32 as BUTTON_SOUTH with imut = 0;
+let is i32 as BUTTON_EAST with imut = 1;
+let is i32 as BUTTON_WEST with imut = 2;
+let is i32 as BUTTON_NORTH with imut = 3;
+let is i32 as BUTTON_BACK with imut = 4;
+let is i32 as BUTTON_GUIDE with imut = 5;
+let is i32 as BUTTON_START with imut = 6;
+let is i32 as BUTTON_LEFT_STICK with imut = 7;
+let is i32 as BUTTON_RIGHT_STICK with imut = 8;
+let is i32 as BUTTON_LEFT_SHOULDER with imut = 9;
+let is i32 as BUTTON_RIGHT_SHOULDER with imut = 10;
+let is i32 as BUTTON_DPAD_UP with imut = 11;
+let is i32 as BUTTON_DPAD_DOWN with imut = 12;
+let is i32 as BUTTON_DPAD_LEFT with imut = 13;
+let is i32 as BUTTON_DPAD_RIGHT with imut = 14;
+
+fn open(id as i32) as *u8 { return SDL_OpenGamepad(id); }
+fn close(gamepad as *u8) as void { SDL_CloseGamepad(gamepad); }
+fn axis(gamepad as *u8, a as i32) as i32 { return SDL_GetGamepadAxis(gamepad, a); }
+fn button(gamepad as *u8, b as i32) as i32 { return SDL_GetGamepadButton(gamepad, b); }
+fn name(gamepad as *u8) as *u8 { return SDL_GetGamepadName(gamepad); }
+fn connected(gamepad as *u8) as i32 { return SDL_GamepadConnected(gamepad); }
+fn get_all(count as *i32) as *u8 { return SDL_GetGamepads(count); }

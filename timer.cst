@@ -1,0 +1,15 @@
+extern fn SDL_GetTicks() as i64;
+extern fn SDL_GetTicksNS() as i64;
+extern fn SDL_GetPerformanceCounter() as i64;
+extern fn SDL_GetPerformanceFrequency() as i64;
+extern fn SDL_Delay(ms as i32) as void;
+extern fn SDL_DelayNS(ns as i64) as void;
+extern fn SDL_DelayPrecise(ns as i64) as void;
+
+fn ticks() as i64 { return SDL_GetTicks(); }
+fn ticks_ns() as i64 { return SDL_GetTicksNS(); }
+fn perf_counter() as i64 { return SDL_GetPerformanceCounter(); }
+fn perf_freq() as i64 { return SDL_GetPerformanceFrequency(); }
+fn delay(ms as i32) as void { SDL_Delay(ms); }
+fn delay_ns(ns as i64) as void { SDL_DelayNS(ns); }
+fn delay_precise(ns as i64) as void { SDL_DelayPrecise(ns); }

@@ -1,0 +1,17 @@
+// surface.cst
+
+extern fn SDL_CreateSurface(width as i32, height as i32, format as i32) as *u8;
+extern fn SDL_LoadBMP(file as *u8) as *u8;
+extern fn SDL_DestroySurface(surface as *u8) as void;
+extern fn SDL_FillSurfaceRect(dst as *u8, rect as *u8, color as i32) as i32;
+extern fn SDL_BlitSurface(src as *u8, srcrect as *u8, dst as *u8, dstrect as *u8) as i32;
+
+let is i32 as PIXELFORMAT_RGBA8888 with imut = 373694468;
+let is i32 as PIXELFORMAT_ARGB8888 with imut = 372645892;
+let is i32 as PIXELFORMAT_RGB24 with imut = 386930691;
+
+fn create(w as i32, h as i32, format as i32) as *u8 { return SDL_CreateSurface(w, h, format); }
+fn load_bmp(file as *u8) as *u8 { return SDL_LoadBMP(file); }
+fn destroy(surface as *u8) as void { SDL_DestroySurface(surface); }
+fn fill_rect(dst as *u8, rect as *u8, color as i32) as i32 { return SDL_FillSurfaceRect(dst, rect, color); }
+fn blit(src as *u8, srcrect as *u8, dst as *u8, dstrect as *u8) as i32 { return SDL_BlitSurface(src, srcrect, dst, dstrect); }
