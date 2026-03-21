@@ -1,10 +1,31 @@
-// examples/hello_window.cst (minimal — just init/quit)
 use "../init.cst" as init;
+use "../video.cst" as video;
+use "../events.cst" as events;
+use "../render.cst" as render;
 
 fn main() as i32 {
-    // SDL3 SDL_Init returns bool: true (non-zero) = success, false (0) = failure
     let is i32 as r = init.init(init.VIDEO);
     if (r == 0) { return 1; }
+
+    let is *u8 as win = video.create_window("hello caustic-sdl3", 800, 600, 0);
+    let is *u8 as ren = render.create_renderer(win);
+
+    let is i32 as running with mut = 1;
+    while (running == 1) {
+        let is i32 as ev with mut = events.poll();
+        while (ev != 0) {
+            if (ev == events.QUIT) { running = 0; }
+            if (ev == events.WINDOW_CLOSE) { running = 0; }
+            ev = events.poll();
+        }
+
+        render.set_color(ren, 40, 40, 40, 255);
+        render.clear(ren);
+        render.present(ren);
+    }
+
+    render.destroy(ren);
+    video.destroy_window(win);
     init.quit();
     return 0;
 }

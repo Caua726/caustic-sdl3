@@ -1,0 +1,52 @@
+// events.cst
+extern fn SDL_PollEvent(event as *u8) as i32;
+
+// Constants — SDL_EventType values
+let is i32 as QUIT with imut = 256;
+let is i32 as KEYDOWN with imut = 768;
+let is i32 as KEYUP with imut = 769;
+let is i32 as MOUSEMOTION with imut = 1024;
+let is i32 as MOUSEBUTTONDOWN with imut = 1025;
+let is i32 as MOUSEBUTTONUP with imut = 1026;
+let is i32 as MOUSEWHEEL with imut = 1027;
+let is i32 as WINDOW_CLOSE with imut = 529;
+let is i32 as WINDOW_RESIZED with imut = 518;
+let is i32 as GAMEPAD_ADDED with imut = 1619;
+let is i32 as GAMEPAD_AXIS with imut = 1616;
+let is i32 as GAMEPAD_BUTTONDOWN with imut = 1617;
+let is i32 as GAMEPAD_BUTTONUP with imut = 1618;
+
+// Internal event buffer (SDL_Event is 128 bytes)
+let is [128]u8 as _ev with mut;
+
+fn poll() as i32 {
+    let is i32 as r = SDL_PollEvent(&_ev);
+    if (r == 0) { return 0; }
+    let is *i32 as tp = cast(*i32, &_ev);
+    return *tp;
+}
+
+// Typed accessors — ONLY valid after poll() returns the matching event type.
+
+// Valid after KEYDOWN or KEYUP
+fn key_scancode() as i32 {
+    let is *i32 as p = cast(*i32, cast(i64, &_ev) + 20);
+    return *p;
+}
+
+// Valid after MOUSEMOTION
+fn mouse_x() as f32 {
+    let is *f32 as p = cast(*f32, cast(i64, &_ev) + 24);
+    return *p;
+}
+
+fn mouse_y() as f32 {
+    let is *f32 as p = cast(*f32, cast(i64, &_ev) + 28);
+    return *p;
+}
+
+// Valid after MOUSEBUTTONDOWN or MOUSEBUTTONUP
+fn mouse_button() as i32 {
+    let is *u8 as p = cast(*u8, cast(i64, &_ev) + 16);
+    return cast(i32, *p);
+}

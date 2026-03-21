@@ -1,1 +1,4 @@
 use "init.cst" as init;
+use "video.cst" as video;
+use "render.cst" as render;
+use "events.cst" as events;

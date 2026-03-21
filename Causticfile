@@ -1,2 +1,8 @@
 name "sdl3"
-system "SDL3"
+version "0.1.0"
+
+target "hello_window" {
+    src "examples/hello_window.cst"
+    out "hello_window"
+    flags "-lSDL3"
+}
