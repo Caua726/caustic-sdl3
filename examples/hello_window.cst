@@ -1,0 +1,10 @@
+// examples/hello_window.cst (minimal — just init/quit)
+use "../init.cst" as init;
+
+fn main() as i32 {
+    // SDL3 SDL_Init returns bool: true (non-zero) = success, false (0) = failure
+    let is i32 as r = init.init(init.VIDEO);
+    if (r == 0) { return 1; }
+    init.quit();
+    return 0;
+}
