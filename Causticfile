@@ -1,14 +1,14 @@
 name "sdl3"
 version "0.1.0"
+system "SDL3"
+system "SDL3_ttf"
 
 target "hello_window" {
     src "examples/hello_window.cst"
     out "hello_window"
-    flags "-lSDL3"
 }
 
 target "draw_rects" {
     src "examples/draw_rects.cst"
     out "draw_rects"
-    flags "-lSDL3"
 }

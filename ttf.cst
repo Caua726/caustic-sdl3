@@ -1,0 +1,22 @@
+// SDL3_ttf bindings
+
+extern fn TTF_Init() as bool;
+extern fn TTF_Quit() as void;
+extern fn TTF_OpenFont(file as *u8, ptsize as f32) as *u8;
+extern fn TTF_CloseFont(font as *u8) as void;
+// SDL_Color (4 bytes: r,g,b,a) is passed by value as i32
+extern fn TTF_RenderText_Blended(font as *u8, text as *u8, length as i64, fg as i32) as *u8;
+
+fn init() as bool { return TTF_Init(); }
+fn quit() as void { TTF_Quit(); }
+fn open_font(file as *u8, size as f32) as *u8 { return TTF_OpenFont(file, size); }
+fn close_font(font as *u8) as void { TTF_CloseFont(font); }
+
+// pack RGBA into i32 matching SDL_Color struct layout (little-endian)
+fn color(r as i32, g as i32, b as i32, a as i32) as i32 {
+    return r + g * 256 + b * 65536 + a * 16777216;
+}
+
+fn render_text(font as *u8, text as *u8, len as i64, fg as i32) as *u8 {
+    return TTF_RenderText_Blended(font, text, len, fg);
+}

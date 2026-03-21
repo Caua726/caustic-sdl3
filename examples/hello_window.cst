@@ -6,75 +6,47 @@ use "../render.cst" as render;
 use "../rect.cst" as rect;
 use "../timer.cst" as timer;
 
+// TTF directly — wrapper has float passing bug
+extern fn TTF_Init() as bool;
+extern fn TTF_Quit() as void;
+extern fn TTF_OpenFont(file as *u8, ptsize as f32) as *u8;
+extern fn TTF_CloseFont(font as *u8) as void;
+extern fn TTF_RenderText_Blended(font as *u8, text as *u8, length as i64, fg as i32) as *u8;
+
 fn print(s as *u8, len as i64) as void {
     linux.write(1, s, len);
 }
 
-// draw a single pixel-block at grid position (gx, gy) with given size
-fn block(ren as *u8, ox as f32, oy as f32, gx as f32, gy as f32, sz as f32) as void {
-    let is [16]u8 as r;
-    rect.makef(&r, ox + gx * sz, oy + gy * sz, sz, sz);
-    render.fill_rect(ren, &r);
-}
-
-// draw "HELLO" as pixel-art (5 letters, each 5 tall, varying width)
-fn draw_hello(ren as *u8, ox as f32, oy as f32, sz as f32) as void {
-    render.set_color(ren, 255, 255, 255, 255);
-
-    // H
-    block(ren, ox, oy, 0.0, 0.0, sz); block(ren, ox, oy, 0.0, 1.0, sz);
-    block(ren, ox, oy, 0.0, 2.0, sz); block(ren, ox, oy, 0.0, 3.0, sz);
-    block(ren, ox, oy, 0.0, 4.0, sz); block(ren, ox, oy, 1.0, 2.0, sz);
-    block(ren, ox, oy, 2.0, 2.0, sz); block(ren, ox, oy, 3.0, 0.0, sz);
-    block(ren, ox, oy, 3.0, 1.0, sz); block(ren, ox, oy, 3.0, 2.0, sz);
-    block(ren, ox, oy, 3.0, 3.0, sz); block(ren, ox, oy, 3.0, 4.0, sz);
-
-    // E (offset x by 5)
-    let is f32 as ex = 5.0;
-    block(ren, ox, oy, ex, 0.0, sz); block(ren, ox, oy, ex, 1.0, sz);
-    block(ren, ox, oy, ex, 2.0, sz); block(ren, ox, oy, ex, 3.0, sz);
-    block(ren, ox, oy, ex, 4.0, sz); block(ren, ox, oy, ex + 1.0, 0.0, sz);
-    block(ren, ox, oy, ex + 2.0, 0.0, sz); block(ren, ox, oy, ex + 1.0, 2.0, sz);
-    block(ren, ox, oy, ex + 2.0, 2.0, sz); block(ren, ox, oy, ex + 1.0, 4.0, sz);
-    block(ren, ox, oy, ex + 2.0, 4.0, sz);
-
-    // L (offset x by 10)
-    let is f32 as lx = 10.0;
-    block(ren, ox, oy, lx, 0.0, sz); block(ren, ox, oy, lx, 1.0, sz);
-    block(ren, ox, oy, lx, 2.0, sz); block(ren, ox, oy, lx, 3.0, sz);
-    block(ren, ox, oy, lx, 4.0, sz); block(ren, ox, oy, lx + 1.0, 4.0, sz);
-    block(ren, ox, oy, lx + 2.0, 4.0, sz);
-
-    // L (offset x by 14)
-    let is f32 as l2x = 14.0;
-    block(ren, ox, oy, l2x, 0.0, sz); block(ren, ox, oy, l2x, 1.0, sz);
-    block(ren, ox, oy, l2x, 2.0, sz); block(ren, ox, oy, l2x, 3.0, sz);
-    block(ren, ox, oy, l2x, 4.0, sz); block(ren, ox, oy, l2x + 1.0, 4.0, sz);
-    block(ren, ox, oy, l2x + 2.0, 4.0, sz);
-
-    // O (offset x by 18)
-    let is f32 as oxx = 18.0;
-    block(ren, ox, oy, oxx, 0.0, sz); block(ren, ox, oy, oxx, 1.0, sz);
-    block(ren, ox, oy, oxx, 2.0, sz); block(ren, ox, oy, oxx, 3.0, sz);
-    block(ren, ox, oy, oxx, 4.0, sz); block(ren, ox, oy, oxx + 1.0, 0.0, sz);
-    block(ren, ox, oy, oxx + 2.0, 0.0, sz); block(ren, ox, oy, oxx + 1.0, 4.0, sz);
-    block(ren, ox, oy, oxx + 2.0, 4.0, sz); block(ren, ox, oy, oxx + 3.0, 0.0, sz);
-    block(ren, ox, oy, oxx + 3.0, 1.0, sz); block(ren, ox, oy, oxx + 3.0, 2.0, sz);
-    block(ren, ox, oy, oxx + 3.0, 3.0, sz); block(ren, ox, oy, oxx + 3.0, 4.0, sz);
+fn color(r as i32, g as i32, b as i32, a as i32) as i32 {
+    return r + g * 256 + b * 65536 + a * 16777216;
 }
 
 fn main() as i32 {
     let is bool as r = init.init(init.VIDEO);
     if (cast(i32, r) == 0) { print("init fail\n", 10); linux.exit(1); }
-    print("init ok\n", 8);
+
+    let is bool as tr = TTF_Init();
+    if (cast(i32, tr) == 0) { print("ttf init fail\n", 14); init.quit(); linux.exit(1); }
 
     let is *u8 as win = video.create_window("hello caustic-sdl3", 800, 600, 0);
-    if (cast(i64, win) == 0) { print("win fail\n", 9); init.quit(); linux.exit(2); }
-    print("win ok\n", 7);
+    if (cast(i64, win) == 0) { print("win fail\n", 9); TTF_Quit(); init.quit(); linux.exit(2); }
 
     let is *u8 as ren = render.create_renderer(win);
-    if (cast(i64, ren) == 0) { print("ren fail\n", 9); video.destroy_window(win); init.quit(); linux.exit(3); }
-    print("ren ok\n", 7);
+    if (cast(i64, ren) == 0) { print("ren fail\n", 9); video.destroy_window(win); TTF_Quit(); init.quit(); linux.exit(3); }
+
+    let is *u8 as font = TTF_OpenFont("/usr/share/fonts/TTF/DejaVuSans.ttf", 72.0);
+    if (cast(i64, font) == 0) { print("font fail\n", 10); render.destroy(ren); video.destroy_window(win); TTF_Quit(); init.quit(); linux.exit(4); }
+    print("font ok\n", 8);
+
+    let is i32 as white = color(255, 255, 255, 255);
+    let is *u8 as surf = TTF_RenderText_Blended(font, "Hello World!", 12, white);
+    if (cast(i64, surf) == 0) { print("text fail\n", 10); linux.exit(5); }
+    print("text ok\n", 8);
+
+    let is *u8 as tex = render.texture_from_surface(ren, surf);
+
+    let is [16]u8 as dst;
+    rect.makef(&dst, 100.0, 220.0, 600.0, 160.0);
 
     print("running\n", 8);
     let is i32 as running with mut = 1;
@@ -82,7 +54,7 @@ fn main() as i32 {
         render.set_color(ren, 30, 30, 60, 255);
         render.clear(ren);
 
-        draw_hello(ren, 180.0, 240.0, 20.0);
+        render.render_texture(ren, tex, cast(*u8, 0), &dst);
 
         render.present(ren);
         timer.delay(16);
@@ -96,8 +68,11 @@ fn main() as i32 {
     }
 
     print("done\n", 5);
+    render.destroy_texture(tex);
+    TTF_CloseFont(font);
     render.destroy(ren);
     video.destroy_window(win);
+    TTF_Quit();
     init.quit();
     linux.exit(0);
     return 0;

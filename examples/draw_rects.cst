@@ -1,52 +1,70 @@
+use "std/linux.cst" as linux;
 use "../init.cst" as init;
 use "../video.cst" as video;
 use "../events.cst" as events;
 use "../render.cst" as render;
 use "../rect.cst" as rect;
+use "../timer.cst" as timer;
+
+fn print(s as *u8, len as i64) as void {
+    linux.write(1, s, len);
+}
 
 fn main() as i32 {
-    let is i32 as r = init.init(init.VIDEO);
-    if (r == 0) { return 1; }
+    let is bool as r = init.init(init.VIDEO);
+    if (cast(i32, r) == 0) { print("init fail\n", 10); linux.exit(1); }
 
     let is *u8 as win = video.create_window("draw rects", 800, 600, 0);
-    let is *u8 as ren = render.create_renderer(win);
+    if (cast(i64, win) == 0) { print("win fail\n", 9); init.quit(); linux.exit(2); }
 
+    let is *u8 as ren = render.create_renderer(win);
+    if (cast(i64, ren) == 0) { print("ren fail\n", 9); video.destroy_window(win); init.quit(); linux.exit(3); }
+
+    print("running\n", 8);
     let is i32 as running with mut = 1;
     while (running == 1) {
+        render.set_color(ren, 0, 0, 0, 255);
+        render.clear(ren);
+
+        // red filled rect
+        let is [16]u8 as r1;
+        rect.makef(&r1, 50.0, 50.0, 200.0, 150.0);
+        render.set_color(ren, 220, 50, 50, 255);
+        render.fill_rect(ren, &r1);
+
+        // green filled rect
+        let is [16]u8 as r2;
+        rect.makef(&r2, 300.0, 100.0, 150.0, 200.0);
+        render.set_color(ren, 50, 200, 50, 255);
+        render.fill_rect(ren, &r2);
+
+        // blue filled rect
+        let is [16]u8 as r3;
+        rect.makef(&r3, 550.0, 200.0, 200.0, 300.0);
+        render.set_color(ren, 50, 80, 220, 255);
+        render.fill_rect(ren, &r3);
+
+        // yellow outlined rect
+        let is [16]u8 as r4;
+        rect.makef(&r4, 150.0, 350.0, 300.0, 200.0);
+        render.set_color(ren, 255, 220, 50, 255);
+        render.draw_rect(ren, &r4);
+
+        render.present(ren);
+        timer.delay(16);
+
         let is i32 as ev with mut = events.poll();
         while (ev != 0) {
             if (ev == events.QUIT) { running = 0; }
             if (ev == events.WINDOW_CLOSE) { running = 0; }
             ev = events.poll();
         }
-
-        // clear black
-        render.set_color(ren, 0, 0, 0, 255);
-        render.clear(ren);
-
-        // red rect
-        let is [16]u8 as r1;
-        rect.makef(&r1, 50.0, 50.0, 200.0, 150.0);
-        render.set_color(ren, 255, 0, 0, 255);
-        render.fill_rect(ren, &r1);
-
-        // green rect
-        let is [16]u8 as r2;
-        rect.makef(&r2, 300.0, 100.0, 150.0, 200.0);
-        render.set_color(ren, 0, 255, 0, 255);
-        render.fill_rect(ren, &r2);
-
-        // blue rect
-        let is [16]u8 as r3;
-        rect.makef(&r3, 550.0, 200.0, 200.0, 300.0);
-        render.set_color(ren, 0, 0, 255, 255);
-        render.fill_rect(ren, &r3);
-
-        render.present(ren);
     }
 
+    print("done\n", 5);
     render.destroy(ren);
     video.destroy_window(win);
     init.quit();
+    linux.exit(0);
     return 0;
 }
