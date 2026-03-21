@@ -1,0 +1,17 @@
+extern fn SDL_GetPlatform() as *u8;
+extern fn SDL_GetNumLogicalCPUCores() as i32;
+extern fn SDL_GetSystemRAM() as i32;
+extern fn SDL_GetPowerInfo(seconds as *i32, percent as *i32) as i32;
+
+// SDL_PowerState (enum)
+let is i32 as POWERSTATE_ERROR with imut = -1;
+let is i32 as POWERSTATE_UNKNOWN with imut = 0;
+let is i32 as POWERSTATE_ON_BATTERY with imut = 1;
+let is i32 as POWERSTATE_NO_BATTERY with imut = 2;
+let is i32 as POWERSTATE_CHARGING with imut = 3;
+let is i32 as POWERSTATE_CHARGED with imut = 4;
+
+fn get_platform() as *u8 { return SDL_GetPlatform(); }
+fn cpu_cores() as i32 { return SDL_GetNumLogicalCPUCores(); }
+fn system_ram() as i32 { return SDL_GetSystemRAM(); }
+fn power_info(seconds as *i32, percent as *i32) as i32 { return SDL_GetPowerInfo(seconds, percent); }

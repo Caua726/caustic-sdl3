@@ -1,0 +1,7 @@
+extern fn SDL_GetTouchDevices(count as *i32) as *u8;
+extern fn SDL_GetTouchDeviceName(touchID as i64) as *u8;
+extern fn SDL_GetTouchFingers(touchID as i64, count as *i32) as *u8;
+
+fn get_devices(count as *i32) as *u8 { return SDL_GetTouchDevices(count); }
+fn device_name(id as i64) as *u8 { return SDL_GetTouchDeviceName(id); }
+fn get_fingers(id as i64, count as *i32) as *u8 { return SDL_GetTouchFingers(id, count); }

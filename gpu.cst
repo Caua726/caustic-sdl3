@@ -1,0 +1,60 @@
+extern fn SDL_CreateGPUDevice(format_flags as i32, debug_mode as i32, name as *u8) as *u8;
+extern fn SDL_DestroyGPUDevice(device as *u8) as void;
+extern fn SDL_ClaimWindowForGPUDevice(device as *u8, window as *u8) as i32;
+extern fn SDL_ReleaseWindowFromGPUDevice(device as *u8, window as *u8) as void;
+extern fn SDL_AcquireGPUCommandBuffer(device as *u8) as *u8;
+extern fn SDL_BeginGPURenderPass(command_buffer as *u8, color_target_infos as *u8, num_color_targets as i32, depth_stencil_target_info as *u8) as *u8;
+extern fn SDL_EndGPURenderPass(render_pass as *u8) as void;
+extern fn SDL_SubmitGPUCommandBuffer(command_buffer as *u8) as i32;
+extern fn SDL_CreateGPUShader(device as *u8, createinfo as *u8) as *u8;
+extern fn SDL_ReleaseGPUShader(device as *u8, shader as *u8) as void;
+extern fn SDL_CreateGPUGraphicsPipeline(device as *u8, createinfo as *u8) as *u8;
+extern fn SDL_ReleaseGPUGraphicsPipeline(device as *u8, pipeline as *u8) as void;
+extern fn SDL_BindGPUGraphicsPipeline(render_pass as *u8, graphics_pipeline as *u8) as void;
+extern fn SDL_CreateGPUBuffer(device as *u8, createinfo as *u8) as *u8;
+extern fn SDL_ReleaseGPUBuffer(device as *u8, buffer as *u8) as void;
+extern fn SDL_CreateGPUTransferBuffer(device as *u8, createinfo as *u8) as *u8;
+extern fn SDL_ReleaseGPUTransferBuffer(device as *u8, transfer_buffer as *u8) as void;
+extern fn SDL_MapGPUTransferBuffer(device as *u8, transfer_buffer as *u8, cycle as i32) as *u8;
+extern fn SDL_UnmapGPUTransferBuffer(device as *u8, transfer_buffer as *u8) as void;
+extern fn SDL_BeginGPUCopyPass(command_buffer as *u8) as *u8;
+extern fn SDL_UploadToGPUBuffer(copy_pass as *u8, source as *u8, destination as *u8, cycle as i32) as void;
+extern fn SDL_EndGPUCopyPass(copy_pass as *u8) as void;
+extern fn SDL_DrawGPUPrimitives(render_pass as *u8, num_vertices as i32, num_instances as i32, first_vertex as i32, first_instance as i32) as void;
+extern fn SDL_AcquireGPUSwapchainTexture(command_buffer as *u8, window as *u8, w as *u8, h as *u8) as *u8;
+extern fn SDL_BindGPUVertexBuffers(render_pass as *u8, first_slot as i32, bindings as *u8, num_bindings as i32) as void;
+extern fn SDL_WaitForGPUIdle(device as *u8) as i32;
+
+let is i32 as GPU_SHADERFORMAT_SPIRV with imut = 1;
+let is i32 as GPU_SHADERFORMAT_DXBC with imut = 2;
+let is i32 as GPU_SHADERFORMAT_DXIL with imut = 4;
+let is i32 as GPU_SHADERFORMAT_MSL with imut = 8;
+let is i32 as GPU_SHADERFORMAT_METALLIB with imut = 16;
+
+fn create_device() as *u8 { return SDL_CreateGPUDevice(0, 0, cast(*u8, 0)); }
+fn create_device_debug() as *u8 { return SDL_CreateGPUDevice(0, 1, cast(*u8, 0)); }
+fn destroy_device(dev as *u8) as void { SDL_DestroyGPUDevice(dev); }
+fn claim_window(dev as *u8, win as *u8) as i32 { return SDL_ClaimWindowForGPUDevice(dev, win); }
+fn release_window(dev as *u8, win as *u8) as void { SDL_ReleaseWindowFromGPUDevice(dev, win); }
+fn acquire_cmd(dev as *u8) as *u8 { return SDL_AcquireGPUCommandBuffer(dev); }
+fn begin_render_pass(cmd as *u8, color_info as *u8, num_targets as i32, depth_info as *u8) as *u8 { return SDL_BeginGPURenderPass(cmd, color_info, num_targets, depth_info); }
+fn end_render_pass(pass as *u8) as void { SDL_EndGPURenderPass(pass); }
+fn submit(cmd as *u8) as i32 { return SDL_SubmitGPUCommandBuffer(cmd); }
+fn create_shader(dev as *u8, info as *u8) as *u8 { return SDL_CreateGPUShader(dev, info); }
+fn release_shader(dev as *u8, shader as *u8) as void { SDL_ReleaseGPUShader(dev, shader); }
+fn create_pipeline(dev as *u8, info as *u8) as *u8 { return SDL_CreateGPUGraphicsPipeline(dev, info); }
+fn release_pipeline(dev as *u8, pipeline as *u8) as void { SDL_ReleaseGPUGraphicsPipeline(dev, pipeline); }
+fn bind_pipeline(pass as *u8, pipeline as *u8) as void { SDL_BindGPUGraphicsPipeline(pass, pipeline); }
+fn create_buffer(dev as *u8, info as *u8) as *u8 { return SDL_CreateGPUBuffer(dev, info); }
+fn release_buffer(dev as *u8, buf as *u8) as void { SDL_ReleaseGPUBuffer(dev, buf); }
+fn create_transfer_buffer(dev as *u8, info as *u8) as *u8 { return SDL_CreateGPUTransferBuffer(dev, info); }
+fn release_transfer_buffer(dev as *u8, buf as *u8) as void { SDL_ReleaseGPUTransferBuffer(dev, buf); }
+fn map_transfer(dev as *u8, buf as *u8, cycle as i32) as *u8 { return SDL_MapGPUTransferBuffer(dev, buf, cycle); }
+fn unmap_transfer(dev as *u8, buf as *u8) as void { SDL_UnmapGPUTransferBuffer(dev, buf); }
+fn begin_copy_pass(cmd as *u8) as *u8 { return SDL_BeginGPUCopyPass(cmd); }
+fn upload_to_buffer(pass as *u8, src as *u8, dst as *u8, cycle as i32) as void { SDL_UploadToGPUBuffer(pass, src, dst, cycle); }
+fn end_copy_pass(pass as *u8) as void { SDL_EndGPUCopyPass(pass); }
+fn draw_primitives(pass as *u8, num_verts as i32, num_instances as i32, first_vert as i32, first_instance as i32) as void { SDL_DrawGPUPrimitives(pass, num_verts, num_instances, first_vert, first_instance); }
+fn acquire_swapchain(cmd as *u8, win as *u8, w as *u8, h as *u8) as *u8 { return SDL_AcquireGPUSwapchainTexture(cmd, win, w, h); }
+fn bind_vertex_buffers(pass as *u8, first_slot as i32, bindings as *u8, num_bindings as i32) as void { SDL_BindGPUVertexBuffers(pass, first_slot, bindings, num_bindings); }
+fn wait_idle(dev as *u8) as i32 { return SDL_WaitForGPUIdle(dev); }

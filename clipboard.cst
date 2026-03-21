@@ -1,0 +1,7 @@
+extern fn SDL_SetClipboardText(text as *u8) as i32;
+extern fn SDL_GetClipboardText() as *u8;
+extern fn SDL_HasClipboardText() as i32;
+
+fn set_text(text as *u8) as i32 { return SDL_SetClipboardText(text); }
+fn get_text() as *u8 { return SDL_GetClipboardText(); }
+fn has_text() as i32 { return SDL_HasClipboardText(); }

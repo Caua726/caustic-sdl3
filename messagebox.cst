@@ -1,0 +1,10 @@
+extern fn SDL_ShowSimpleMessageBox(flags as i32, title as *u8, message as *u8, parent as *u8) as i32;
+
+// SDL_MessageBoxFlags (Uint32)
+let is i32 as MESSAGEBOX_ERROR with imut = 16;
+let is i32 as MESSAGEBOX_WARNING with imut = 32;
+let is i32 as MESSAGEBOX_INFORMATION with imut = 64;
+
+fn show(flags as i32, title as *u8, message as *u8, parent as *u8) as i32 { return SDL_ShowSimpleMessageBox(flags, title, message, parent); }
+fn error(title as *u8, message as *u8) as i32 { return SDL_ShowSimpleMessageBox(MESSAGEBOX_ERROR, title, message, cast(*u8, 0)); }
+fn info(title as *u8, message as *u8) as i32 { return SDL_ShowSimpleMessageBox(MESSAGEBOX_INFORMATION, title, message, cast(*u8, 0)); }

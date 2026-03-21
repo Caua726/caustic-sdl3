@@ -1,0 +1,5 @@
+extern fn SDL_RumbleGamepad(gamepad as *u8, low_frequency_rumble as i32, high_frequency_rumble as i32, duration_ms as i32) as i32;
+extern fn SDL_RumbleGamepadTriggers(gamepad as *u8, left_rumble as i32, right_rumble as i32, duration_ms as i32) as i32;
+
+fn rumble(gamepad as *u8, low as i32, high as i32, duration as i32) as i32 { return SDL_RumbleGamepad(gamepad, low, high, duration); }
+fn rumble_triggers(gamepad as *u8, left as i32, right as i32, duration as i32) as i32 { return SDL_RumbleGamepadTriggers(gamepad, left, right, duration); }
