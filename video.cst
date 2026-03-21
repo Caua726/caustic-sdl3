@@ -1,23 +1,20 @@
 // SDL3 Window Management Bindings
 
-// --- Extern SDL3 Functions ---
-
 extern fn SDL_CreateWindow(title as *u8, w as i32, h as i32, flags as i64) as *u8;
 extern fn SDL_DestroyWindow(window as *u8) as void;
-extern fn SDL_GetWindowSize(window as *u8, w as *i32, h as *i32) as i32;
-extern fn SDL_SetWindowTitle(window as *u8, title as *u8) as i32;
-extern fn SDL_SetWindowSize(window as *u8, w as i32, h as i32) as i32;
-extern fn SDL_SetWindowPosition(window as *u8, x as i32, y as i32) as i32;
-extern fn SDL_ShowWindow(window as *u8) as i32;
-extern fn SDL_HideWindow(window as *u8) as i32;
-extern fn SDL_MaximizeWindow(window as *u8) as i32;
-extern fn SDL_MinimizeWindow(window as *u8) as i32;
-extern fn SDL_RestoreWindow(window as *u8) as i32;
-extern fn SDL_SetWindowFullscreen(window as *u8, fullscreen as i32) as i32;
+extern fn SDL_GetWindowSize(window as *u8, w as *i32, h as *i32) as bool;
+extern fn SDL_SetWindowTitle(window as *u8, title as *u8) as bool;
+extern fn SDL_SetWindowSize(window as *u8, w as i32, h as i32) as bool;
+extern fn SDL_SetWindowPosition(window as *u8, x as i32, y as i32) as bool;
+extern fn SDL_ShowWindow(window as *u8) as bool;
+extern fn SDL_HideWindow(window as *u8) as bool;
+extern fn SDL_MaximizeWindow(window as *u8) as bool;
+extern fn SDL_MinimizeWindow(window as *u8) as bool;
+extern fn SDL_RestoreWindow(window as *u8) as bool;
+extern fn SDL_SetWindowFullscreen(window as *u8, fullscreen as bool) as bool;
 extern fn SDL_GetWindowFlags(window as *u8) as i64;
 
-// --- Window Flag Constants ---
-
+// Window flags
 let is i64 as WINDOW_FULLSCREEN with imut = 1;
 let is i64 as WINDOW_OPENGL with imut = 2;
 let is i64 as WINDOW_HIDDEN with imut = 8;
@@ -31,17 +28,15 @@ let is i64 as WINDOW_ALWAYS_ON_TOP with imut = 65536;
 let is i64 as WINDOW_VULKAN with imut = 268435456;
 let is i64 as WINDOW_METAL with imut = 536870912;
 
-// --- Caustic-Native Convenience Wrappers ---
-
 fn create_window(title as *u8, w as i32, h as i32, flags as i64) as *u8 { return SDL_CreateWindow(title, w, h, flags); }
 fn destroy_window(window as *u8) as void { SDL_DestroyWindow(window); }
-fn get_size(window as *u8, w as *i32, h as *i32) as i32 { return SDL_GetWindowSize(window, w, h); }
-fn set_title(window as *u8, title as *u8) as i32 { return SDL_SetWindowTitle(window, title); }
-fn set_size(window as *u8, w as i32, h as i32) as i32 { return SDL_SetWindowSize(window, w, h); }
-fn show(window as *u8) as i32 { return SDL_ShowWindow(window); }
-fn hide(window as *u8) as i32 { return SDL_HideWindow(window); }
-fn maximize(window as *u8) as i32 { return SDL_MaximizeWindow(window); }
-fn minimize(window as *u8) as i32 { return SDL_MinimizeWindow(window); }
-fn restore(window as *u8) as i32 { return SDL_RestoreWindow(window); }
-fn set_fullscreen(window as *u8, fullscreen as i32) as i32 { return SDL_SetWindowFullscreen(window, fullscreen); }
+fn get_size(window as *u8, w as *i32, h as *i32) as bool { return SDL_GetWindowSize(window, w, h); }
+fn set_title(window as *u8, title as *u8) as bool { return SDL_SetWindowTitle(window, title); }
+fn set_size(window as *u8, w as i32, h as i32) as bool { return SDL_SetWindowSize(window, w, h); }
+fn show(window as *u8) as bool { return SDL_ShowWindow(window); }
+fn hide(window as *u8) as bool { return SDL_HideWindow(window); }
+fn maximize(window as *u8) as bool { return SDL_MaximizeWindow(window); }
+fn minimize(window as *u8) as bool { return SDL_MinimizeWindow(window); }
+fn restore(window as *u8) as bool { return SDL_RestoreWindow(window); }
+fn set_fullscreen(window as *u8, fullscreen as bool) as bool { return SDL_SetWindowFullscreen(window, fullscreen); }
 fn get_flags(window as *u8) as i64 { return SDL_GetWindowFlags(window); }

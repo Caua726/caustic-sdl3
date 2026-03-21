@@ -7,32 +7,30 @@ let is i32 as BLEND_ADD with imut = 2;
 let is i32 as BLEND_MOD with imut = 4;
 let is i32 as BLEND_MUL with imut = 8;
 
-// Extern declarations
 extern fn SDL_CreateRenderer(window as *u8, name as *u8) as *u8;
 extern fn SDL_DestroyRenderer(renderer as *u8) as void;
-extern fn SDL_SetRenderDrawColor(renderer as *u8, r as i32, g as i32, b as i32, a as i32) as i32;
-extern fn SDL_RenderClear(renderer as *u8) as i32;
-extern fn SDL_RenderPresent(renderer as *u8) as i32;
-extern fn SDL_RenderFillRect(renderer as *u8, rect as *u8) as i32;
-extern fn SDL_RenderRect(renderer as *u8, rect as *u8) as i32;
-extern fn SDL_RenderLine(renderer as *u8, x1 as f32, y1 as f32, x2 as f32, y2 as f32) as i32;
-extern fn SDL_RenderPoint(renderer as *u8, x as f32, y as f32) as i32;
+extern fn SDL_SetRenderDrawColor(renderer as *u8, r as i32, g as i32, b as i32, a as i32) as bool;
+extern fn SDL_RenderClear(renderer as *u8) as bool;
+extern fn SDL_RenderPresent(renderer as *u8) as bool;
+extern fn SDL_RenderFillRect(renderer as *u8, rect as *u8) as bool;
+extern fn SDL_RenderRect(renderer as *u8, rect as *u8) as bool;
+extern fn SDL_RenderLine(renderer as *u8, x1 as f32, y1 as f32, x2 as f32, y2 as f32) as bool;
+extern fn SDL_RenderPoint(renderer as *u8, x as f32, y as f32) as bool;
 extern fn SDL_CreateTextureFromSurface(renderer as *u8, surface as *u8) as *u8;
-extern fn SDL_RenderTexture(renderer as *u8, texture as *u8, srcrect as *u8, dstrect as *u8) as i32;
+extern fn SDL_RenderTexture(renderer as *u8, texture as *u8, srcrect as *u8, dstrect as *u8) as bool;
 extern fn SDL_DestroyTexture(texture as *u8) as void;
-extern fn SDL_SetRenderDrawBlendMode(renderer as *u8, blendMode as i32) as i32;
+extern fn SDL_SetRenderDrawBlendMode(renderer as *u8, blendMode as i32) as bool;
 
-// Convenience wrappers
 fn create_renderer(window as *u8) as *u8 { return SDL_CreateRenderer(window, cast(*u8, 0)); }
 fn destroy(renderer as *u8) as void { SDL_DestroyRenderer(renderer); }
-fn set_color(renderer as *u8, r as i32, g as i32, b as i32, a as i32) as i32 { return SDL_SetRenderDrawColor(renderer, r, g, b, a); }
-fn clear(renderer as *u8) as i32 { return SDL_RenderClear(renderer); }
-fn present(renderer as *u8) as i32 { return SDL_RenderPresent(renderer); }
-fn fill_rect(renderer as *u8, rect as *u8) as i32 { return SDL_RenderFillRect(renderer, rect); }
-fn draw_rect(renderer as *u8, rect as *u8) as i32 { return SDL_RenderRect(renderer, rect); }
-fn draw_line(renderer as *u8, x1 as f32, y1 as f32, x2 as f32, y2 as f32) as i32 { return SDL_RenderLine(renderer, x1, y1, x2, y2); }
-fn draw_point(renderer as *u8, x as f32, y as f32) as i32 { return SDL_RenderPoint(renderer, x, y); }
+fn set_color(renderer as *u8, r as i32, g as i32, b as i32, a as i32) as bool { return SDL_SetRenderDrawColor(renderer, r, g, b, a); }
+fn clear(renderer as *u8) as bool { return SDL_RenderClear(renderer); }
+fn present(renderer as *u8) as bool { return SDL_RenderPresent(renderer); }
+fn fill_rect(renderer as *u8, rect as *u8) as bool { return SDL_RenderFillRect(renderer, rect); }
+fn draw_rect(renderer as *u8, rect as *u8) as bool { return SDL_RenderRect(renderer, rect); }
+fn draw_line(renderer as *u8, x1 as f32, y1 as f32, x2 as f32, y2 as f32) as bool { return SDL_RenderLine(renderer, x1, y1, x2, y2); }
+fn draw_point(renderer as *u8, x as f32, y as f32) as bool { return SDL_RenderPoint(renderer, x, y); }
 fn texture_from_surface(renderer as *u8, surface as *u8) as *u8 { return SDL_CreateTextureFromSurface(renderer, surface); }
-fn render_texture(renderer as *u8, texture as *u8, src as *u8, dst as *u8) as i32 { return SDL_RenderTexture(renderer, texture, src, dst); }
+fn render_texture(renderer as *u8, texture as *u8, src as *u8, dst as *u8) as bool { return SDL_RenderTexture(renderer, texture, src, dst); }
 fn destroy_texture(texture as *u8) as void { SDL_DestroyTexture(texture); }
-fn set_blend_mode(renderer as *u8, mode as i32) as i32 { return SDL_SetRenderDrawBlendMode(renderer, mode); }
+fn set_blend_mode(renderer as *u8, mode as i32) as bool { return SDL_SetRenderDrawBlendMode(renderer, mode); }

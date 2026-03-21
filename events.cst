@@ -1,5 +1,5 @@
 // events.cst
-extern fn SDL_PollEvent(event as *u8) as i32;
+extern fn SDL_PollEvent(event as *u8) as bool;
 
 // Constants — SDL_EventType values
 let is i32 as QUIT with imut = 256;
@@ -9,7 +9,7 @@ let is i32 as MOUSEMOTION with imut = 1024;
 let is i32 as MOUSEBUTTONDOWN with imut = 1025;
 let is i32 as MOUSEBUTTONUP with imut = 1026;
 let is i32 as MOUSEWHEEL with imut = 1027;
-let is i32 as WINDOW_CLOSE with imut = 529;
+let is i32 as WINDOW_CLOSE with imut = 528;
 let is i32 as WINDOW_RESIZED with imut = 518;
 let is i32 as GAMEPAD_ADDED with imut = 1619;
 let is i32 as GAMEPAD_AXIS with imut = 1616;
@@ -20,8 +20,8 @@ let is i32 as GAMEPAD_BUTTONUP with imut = 1618;
 let is [128]u8 as _ev with mut;
 
 fn poll() as i32 {
-    let is i32 as r = SDL_PollEvent(&_ev);
-    if (r == 0) { return 0; }
+    let is bool as r = SDL_PollEvent(&_ev);
+    if (cast(i32, r) == 0) { return 0; }
     let is *i32 as tp = cast(*i32, &_ev);
     return *tp;
 }

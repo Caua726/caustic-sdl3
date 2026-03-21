@@ -1,11 +1,10 @@
 // SDL3 init/quit
-// NOTE: SDL3 SDL_Init returns bool (true=success, false=failure)
-extern fn SDL_Init(flags as i32) as i32;
+extern fn SDL_Init(flags as i32) as bool;
 extern fn SDL_Quit() as void;
 extern fn SDL_GetError() as *u8;
 extern fn SDL_GetVersion() as i32;
 
-// Init flags (SDL_InitFlags — Uint32 in SDL3)
+// Init flags (SDL_InitFlags)
 let is i32 as AUDIO with imut = 16;
 let is i32 as VIDEO with imut = 32;
 let is i32 as JOYSTICK with imut = 512;
@@ -14,7 +13,7 @@ let is i32 as GAMEPAD with imut = 8192;
 let is i32 as EVENTS with imut = 16384;
 let is i32 as CAMERA with imut = 65536;
 
-fn init(flags as i32) as i32 { return SDL_Init(flags); }
+fn init(flags as i32) as bool { return SDL_Init(flags); }
 fn quit() as void { SDL_Quit(); }
 fn get_error() as *u8 { return SDL_GetError(); }
 fn version() as i32 { return SDL_GetVersion(); }
