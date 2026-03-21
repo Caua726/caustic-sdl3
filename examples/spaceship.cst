@@ -1,0 +1,983 @@
+use "std/linux.cst" as linux;
+use "../init.cst" as init;
+use "../video.cst" as video;
+use "../events.cst" as events;
+use "../render.cst" as render;
+use "../rect.cst" as rect;
+use "../timer.cst" as timer;
+use "../keyboard.cst" as kb;
+use "../ttf.cst" as ttf;
+use "../surface.cst" as surface;
+
+// ══════════════════════════════════════════════════════════
+// Constants
+// ══════════════════════════════════════════════════════════
+let is i32 as SCREEN_W with imut = 800;
+let is i32 as SCREEN_H with imut = 600;
+let is i32 as MAX_PBULLETS with imut = 50;
+let is i32 as MAX_EBULLETS with imut = 8;
+let is i32 as MAX_ENEMIES with imut = 16;
+let is i32 as MAX_STARS with imut = 40;
+let is i32 as MAX_DROPS with imut = 4;
+let is i32 as FIRE_CD_NORMAL with imut = 8;
+let is i32 as FIRE_CD_RAPID with imut = 4;
+let is i32 as PLAYER_SPEED with imut = 5;
+let is i32 as BULLET_SPEED with imut = 8;
+let is i32 as EBULLET_SPEED with imut = 4;
+let is i32 as PLAYER_Y with imut = 540;
+let is i32 as INVULN_TIME with imut = 120;
+let is i32 as POWERUP_TIME with imut = 300;
+let is i32 as WAVE_PAUSE with imut = 90;
+let is i32 as DROP_CHANCE with imut = 20;
+// powerup types
+let is i32 as PW_NONE with imut = 0;
+let is i32 as PW_DOUBLE with imut = 1;
+let is i32 as PW_RAPID with imut = 2;
+let is i32 as PW_SHIELD with imut = 3;
+
+// ══════════════════════════════════════════════════════════
+// Game state
+// ══════════════════════════════════════════════════════════
+let is f32 as player_x with mut = 400.0;
+let is i32 as lives with mut = 3;
+let is i32 as score with mut = 0;
+let is i32 as hi_score with mut = 0;
+let is i32 as wave with mut = 1;
+let is i32 as wave_total with mut = 5;
+let is i32 as wave_spawned with mut = 0;
+let is i32 as wave_killed with mut = 0;
+let is i32 as wave_pause_t with mut = 0;
+let is i32 as fire_cd with mut = 0;
+let is i32 as spawn_timer with mut = 0;
+let is i32 as invuln_t with mut = 0;
+let is i32 as game_over with mut = 0;
+let is i32 as frame with mut = 0;
+let is i64 as rng_state with mut = 42;
+
+// powerup state
+let is i32 as pw_type with mut = 0;
+let is i32 as pw_timer with mut = 0;
+let is i32 as has_shield with mut = 0;
+
+// boss state
+let is f32 as boss_x with mut = 400.0;
+let is f32 as boss_y with mut = 60.0;
+let is i32 as boss_hp with mut = 0;
+let is i32 as boss_active with mut = 0;
+let is i32 as boss_dir with mut = 1;
+let is i32 as boss_shoot_cd with mut = 0;
+
+// enemy speed for current wave
+let is i32 as enemy_speed with mut = 2;
+
+// SDL handles (set in main)
+let is *u8 as g_ren with mut;
+let is *u8 as g_font with mut;
+
+// entity arrays
+let is [600]u8 as pbullets with mut;
+let is [96]u8 as ebullets with mut;
+let is [192]u8 as enemies with mut;
+let is [480]u8 as stars with mut;
+let is [64]u8 as drops with mut;
+
+// ══════════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════════
+fn rng() as i32 {
+    rng_state = rng_state * 1103515245 + 12345;
+    return cast(i32, (rng_state >> 16) & 32767);
+}
+
+fn get_f32(arr as *u8, off as i32) as f32 {
+    let is *f32 as p = cast(*f32, cast(i64, arr) + cast(i64, off));
+    return *p;
+}
+fn set_f32(arr as *u8, off as i32, val as f32) as void {
+    let is *f32 as p = cast(*f32, cast(i64, arr) + cast(i64, off));
+    *p = val;
+}
+fn get_i32(arr as *u8, off as i32) as i32 {
+    let is *i32 as p = cast(*i32, cast(i64, arr) + cast(i64, off));
+    return *p;
+}
+fn set_i32(arr as *u8, off as i32, val as i32) as void {
+    let is *i32 as p = cast(*i32, cast(i64, arr) + cast(i64, off));
+    *p = val;
+}
+
+fn pressed(keys as *u8, sc as i32) as i32 {
+    let is u8 as v = *cast(*u8, cast(i64, keys) + cast(i64, sc));
+    return cast(i32, v);
+}
+
+fn negf(x as f32) as f32 { return 0.0 - x; }
+
+fn collides(ax as f32, ay as f32, aw as f32, ah as f32,
+            bx as f32, by as f32, bw as f32, bh as f32) as i32 {
+    if (ax + aw < bx) { return 0; }
+    if (bx + bw < ax) { return 0; }
+    if (ay + ah < by) { return 0; }
+    if (by + bh < ay) { return 0; }
+    return 1;
+}
+
+fn draw(x as f32, y as f32, w as f32, h as f32) as void {
+    let is [16]u8 as rc;
+    rect.makef(&rc, x, y, w, h);
+    render.fill_rect(g_ren, &rc);
+}
+
+fn print(s as *u8, len as i64) as void { linux.write(1, s, len); }
+
+// ── itoa ──
+let is [20]u8 as itoa_buf with mut;
+fn itoa(n as i32) as *u8 {
+    let is i32 as val with mut = n;
+    let is i32 as pos with mut = 18;
+    itoa_buf[19] = cast(u8, 0);
+    if (val == 0) {
+        itoa_buf[18] = 48;
+        return cast(*u8, cast(i64, &itoa_buf) + 18);
+    }
+    while (val > 0) {
+        let is *u8 as p = cast(*u8, cast(i64, &itoa_buf) + cast(i64, pos));
+        *p = cast(u8, 48 + val % 10);
+        val = val / 10;
+        pos = pos - 1;
+    }
+    return cast(*u8, cast(i64, &itoa_buf) + cast(i64, pos + 1));
+}
+
+fn strlen(s as *u8) as i64 {
+    let is i64 as len with mut = 0;
+    while (*cast(*u8, cast(i64, s) + len) != 0) { len = len + 1; }
+    return len;
+}
+
+// ── string concat: "PREFIX" + number ──
+let is [40]u8 as concat_buf with mut;
+fn str_concat(prefix as *u8, plen as i32, num as i32) as *u8 {
+    let is i32 as i with mut = 0;
+    while (i < plen) {
+        concat_buf[i] = *cast(*u8, cast(i64, prefix) + cast(i64, i));
+        i = i + 1;
+    }
+    let is *u8 as ns = itoa(num);
+    let is i64 as nlen = strlen(ns);
+    let is i32 as j with mut = 0;
+    while (j < cast(i32, nlen)) {
+        concat_buf[i + j] = *cast(*u8, cast(i64, ns) + cast(i64, j));
+        j = j + 1;
+    }
+    concat_buf[i + j] = cast(u8, 0);
+    return &concat_buf;
+}
+
+// ══════════════════════════════════════════════════════════
+// TTF text rendering helper
+// ══════════════════════════════════════════════════════════
+fn draw_text(text as *u8, x as f32, y as f32, w as f32, h as f32) as void {
+    if (cast(i64, g_font) == 0) { return; }
+    let is i64 as tlen = strlen(text);
+    if (tlen == 0) { return; }
+    let is i32 as white = ttf.color(255, 255, 255, 255);
+    let is *u8 as surf = ttf.render_text(g_font, text, tlen, white);
+    if (cast(i64, surf) == 0) { return; }
+    let is *u8 as tex = render.texture_from_surface(g_ren, surf);
+    surface.destroy(surf);
+    if (cast(i64, tex) == 0) { return; }
+    let is [16]u8 as rc;
+    rect.makef(&rc, x, y, w, h);
+    render.render_texture(g_ren, tex, cast(*u8, 0), &rc);
+    render.destroy_texture(tex);
+}
+
+fn draw_text_color(text as *u8, x as f32, y as f32, w as f32, h as f32, r as i32, g as i32, b as i32) as void {
+    if (cast(i64, g_font) == 0) { return; }
+    let is i64 as tlen = strlen(text);
+    if (tlen == 0) { return; }
+    let is i32 as col = ttf.color(r, g, b, 255);
+    let is *u8 as surf = ttf.render_text(g_font, text, tlen, col);
+    if (cast(i64, surf) == 0) { return; }
+    let is *u8 as tex = render.texture_from_surface(g_ren, surf);
+    surface.destroy(surf);
+    if (cast(i64, tex) == 0) { return; }
+    let is [16]u8 as rc;
+    rect.makef(&rc, x, y, w, h);
+    render.render_texture(g_ren, tex, cast(*u8, 0), &rc);
+    render.destroy_texture(tex);
+}
+
+// ══════════════════════════════════════════════════════════
+// Record save/load
+// ══════════════════════════════════════════════════════════
+fn load_record() as void {
+    let is i64 as fd = linux.open("/tmp/caustic-spaceship.rec", linux.O_RDONLY, 0);
+    if (fd < 0) { hi_score = 0; return; }
+    let is [16]u8 as buf;
+    let is i64 as n = linux.read(cast(i32, fd), &buf, 15);
+    linux.close(cast(i32, fd));
+    if (n <= 0) { hi_score = 0; return; }
+    // parse ascii digits
+    let is i32 as val with mut = 0;
+    let is i32 as i with mut = 0;
+    while (i < cast(i32, n)) {
+        let is u8 as c = buf[i];
+        if (c >= 48 && c <= 57) {
+            val = val * 10 + cast(i32, c) - 48;
+        }
+        i = i + 1;
+    }
+    hi_score = val;
+}
+
+fn save_record() as void {
+    if (score <= hi_score) { return; }
+    hi_score = score;
+    let is *u8 as s = itoa(hi_score);
+    let is i64 as slen = strlen(s);
+    let is i64 as fd = linux.open("/tmp/caustic-spaceship.rec", 577, 420);
+    if (fd < 0) { return; }
+    linux.write(cast(i32, fd), s, slen);
+    linux.close(cast(i32, fd));
+}
+
+// ══════════════════════════════════════════════════════════
+// Init / Reset
+// ══════════════════════════════════════════════════════════
+fn zero_array(arr as *u8, size as i32) as void {
+    let is i32 as i with mut = 0;
+    while (i < size) { set_i32(arr, i, 0); i = i + 4; }
+}
+
+fn init_stars() as void {
+    let is i32 as i with mut = 0;
+    while (i < MAX_STARS) {
+        let is i32 as off = i * 12;
+        set_f32(&stars, off, cast(f32, rng() % 800));
+        set_f32(&stars, off + 4, cast(f32, rng() % 600));
+        set_f32(&stars, off + 8, 0.5 + cast(f32, rng() % 100) / 50.0);
+        i = i + 1;
+    }
+}
+
+fn reset_game() as void {
+    player_x = 400.0;
+    lives = 3;
+    score = 0;
+    wave = 1;
+    wave_total = 5;
+    wave_spawned = 0;
+    wave_killed = 0;
+    wave_pause_t = 0;
+    fire_cd = 0;
+    spawn_timer = 0;
+    invuln_t = 0;
+    game_over = 0;
+    pw_type = PW_NONE;
+    pw_timer = 0;
+    has_shield = 0;
+    boss_active = 0;
+    boss_hp = 0;
+    enemy_speed = 2;
+    zero_array(&pbullets, 600);
+    zero_array(&ebullets, 96);
+    zero_array(&enemies, 192);
+    zero_array(&drops, 64);
+}
+
+// ══════════════════════════════════════════════════════════
+// Spawn / Fire
+// ══════════════════════════════════════════════════════════
+fn spawn_enemy() as void {
+    if (wave_spawned >= wave_total) { return; }
+    let is i32 as i with mut = 0;
+    while (i < MAX_ENEMIES) {
+        let is i32 as off = i * 12;
+        if (get_i32(&enemies, off + 8) == 0) {
+            set_f32(&enemies, off, cast(f32, 30 + rng() % 740));
+            set_f32(&enemies, off + 4, 0.0 - 40.0);
+            set_i32(&enemies, off + 8, 1);
+            wave_spawned = wave_spawned + 1;
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+fn spawn_boss() as void {
+    boss_x = 400.0;
+    boss_y = 70.0;
+    boss_hp = 10 + wave * 2;
+    boss_active = 1;
+    boss_dir = 1;
+    boss_shoot_cd = 60;
+}
+
+fn fire_bullet() as i32 {
+    let is i32 as i with mut = 0;
+    while (i < MAX_PBULLETS) {
+        let is i32 as off = i * 12;
+        if (get_i32(&pbullets, off + 8) == 0) {
+            set_f32(&pbullets, off, player_x);
+            set_f32(&pbullets, off + 4, cast(f32, PLAYER_Y) - 25.0);
+            set_i32(&pbullets, off + 8, 1);
+            return 1;
+        }
+        i = i + 1;
+    }
+    return 0;
+}
+
+fn fire_double() as i32 {
+    let is i32 as fired with mut = 0;
+    // left bullet
+    let is i32 as i with mut = 0;
+    while (i < MAX_PBULLETS) {
+        let is i32 as off = i * 12;
+        if (get_i32(&pbullets, off + 8) == 0) {
+            set_f32(&pbullets, off, player_x - 10.0);
+            set_f32(&pbullets, off + 4, cast(f32, PLAYER_Y) - 20.0);
+            set_i32(&pbullets, off + 8, 1);
+            fired = 1;
+            i = MAX_PBULLETS;
+        }
+        i = i + 1;
+    }
+    // right bullet
+    i = 0;
+    while (i < MAX_PBULLETS) {
+        let is i32 as off = i * 12;
+        if (get_i32(&pbullets, off + 8) == 0) {
+            set_f32(&pbullets, off, player_x + 10.0);
+            set_f32(&pbullets, off + 4, cast(f32, PLAYER_Y) - 20.0);
+            set_i32(&pbullets, off + 8, 1);
+            fired = 1;
+            i = MAX_PBULLETS;
+        }
+        i = i + 1;
+    }
+    return fired;
+}
+
+fn fire_enemy_bullet(x as f32, y as f32) as void {
+    let is i32 as i with mut = 0;
+    while (i < MAX_EBULLETS) {
+        let is i32 as off = i * 12;
+        if (get_i32(&ebullets, off + 8) == 0) {
+            set_f32(&ebullets, off, x);
+            set_f32(&ebullets, off + 4, y);
+            set_i32(&ebullets, off + 8, 1);
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+fn spawn_drop(x as f32, y as f32) as void {
+    if (rng() % 100 >= DROP_CHANCE) { return; }
+    let is i32 as i with mut = 0;
+    while (i < MAX_DROPS) {
+        let is i32 as off = i * 16;
+        if (get_i32(&drops, off + 12) == 0) {
+            set_f32(&drops, off, x);
+            set_f32(&drops, off + 4, y);
+            set_i32(&drops, off + 8, 1 + rng() % 3);
+            set_i32(&drops, off + 12, 1);
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// Player hit
+// ══════════════════════════════════════════════════════════
+fn player_hit() as void {
+    if (invuln_t > 0) { return; }
+    if (has_shield == 1) {
+        has_shield = 0;
+        invuln_t = 30;
+        return;
+    }
+    lives = lives - 1;
+    invuln_t = INVULN_TIME;
+    if (lives <= 0) {
+        game_over = 1;
+        save_record();
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// Wave management
+// ══════════════════════════════════════════════════════════
+fn is_boss_wave() as i32 {
+    if (wave % 5 == 0) { return 1; }
+    return 0;
+}
+
+fn start_wave() as void {
+    wave_spawned = 0;
+    wave_killed = 0;
+    wave_total = 5 + (wave - 1) * 2;
+    if (wave_total > MAX_ENEMIES) { wave_total = MAX_ENEMIES; }
+    enemy_speed = 2 + wave / 2;
+    if (enemy_speed > 6) { enemy_speed = 6; }
+    if (is_boss_wave() == 1) {
+        wave_total = 0;
+        spawn_boss();
+    }
+}
+
+fn check_wave_complete() as void {
+    if (wave_pause_t > 0) { return; }
+    if (is_boss_wave() == 1) {
+        if (boss_active == 0 && boss_hp <= 0) {
+            // boss was defeated
+            score = score + 200 + wave * 20;
+            wave_pause_t = WAVE_PAUSE;
+        }
+        return;
+    }
+    if (wave_killed >= wave_total && wave_total > 0) {
+        score = score + wave * 50;
+        wave_pause_t = WAVE_PAUSE;
+    }
+}
+
+fn advance_wave() as void {
+    wave = wave + 1;
+    start_wave();
+}
+
+// ══════════════════════════════════════════════════════════
+// Render HUD
+// ══════════════════════════════════════════════════════════
+fn draw_heart(x as f32, y as f32) as void {
+    render.set_color(g_ren, 220, 30, 50, 255);
+    // top bumps
+    draw(x, y + 2.0, 5.0, 5.0);
+    draw(x + 7.0, y + 2.0, 5.0, 5.0);
+    // middle
+    draw(x - 1.0, y + 5.0, 14.0, 4.0);
+    // bottom taper
+    draw(x + 1.0, y + 9.0, 10.0, 3.0);
+    draw(x + 3.0, y + 12.0, 6.0, 2.0);
+    draw(x + 5.0, y + 14.0, 2.0, 2.0);
+}
+
+fn render_hud() as void {
+    // Score
+    let is *u8 as stxt = str_concat("SCORE ", 6, score);
+    let is i64 as slen = strlen(stxt);
+    draw_text(stxt, 10.0, 10.0, cast(f32, slen) * 10.0, 20.0);
+
+    // Hi score
+    let is *u8 as htxt = str_concat("HI ", 3, hi_score);
+    let is i64 as hlen = strlen(htxt);
+    draw_text_color(htxt, 10.0, 34.0, cast(f32, hlen) * 8.0, 16.0, 150, 150, 150);
+
+    // Wave
+    let is *u8 as wtxt = str_concat("WAVE ", 5, wave);
+    let is i64 as wlen = strlen(wtxt);
+    draw_text(wtxt, 790.0 - cast(f32, wlen) * 10.0, 10.0, cast(f32, wlen) * 10.0, 20.0);
+
+    // Lives as hearts
+    let is i32 as li with mut = 0;
+    while (li < lives) {
+        draw_heart(370.0 + cast(f32, li) * 20.0, 10.0);
+        li = li + 1;
+    }
+
+    // Active powerup indicator
+    if (pw_type == PW_DOUBLE) {
+        render.set_color(g_ren, 60, 120, 255, 255);
+        draw(760.0, 40.0, 12.0, 12.0);
+        draw(774.0, 40.0, 12.0, 12.0);
+    }
+    if (pw_type == PW_RAPID) {
+        render.set_color(g_ren, 255, 220, 50, 255);
+        draw(766.0, 40.0, 4.0, 16.0);
+        draw(772.0, 38.0, 4.0, 16.0);
+        draw(778.0, 40.0, 4.0, 16.0);
+    }
+    if (pw_type == PW_SHIELD && has_shield == 1) {
+        render.set_color(g_ren, 50, 220, 100, 255);
+        draw(766.0, 38.0, 16.0, 4.0);
+        draw(766.0, 50.0, 16.0, 4.0);
+        draw(764.0, 38.0, 4.0, 16.0);
+        draw(780.0, 38.0, 4.0, 16.0);
+    }
+
+    // Cooldown bar — next to player
+    let is f32 as py = cast(f32, PLAYER_Y);
+    let is i32 as max_cd with mut = FIRE_CD_NORMAL;
+    if (pw_type == PW_RAPID) { max_cd = FIRE_CD_RAPID; }
+    // background
+    render.set_color(g_ren, 40, 40, 40, 150);
+    draw(player_x - 15.0, py + 24.0, 30.0, 3.0);
+    // fill (full = ready to fire)
+    if (fire_cd == 0) {
+        render.set_color(g_ren, 80, 255, 80, 255);
+        draw(player_x - 15.0, py + 24.0, 30.0, 3.0);
+    } else {
+        let is f32 as pct = cast(f32, max_cd - fire_cd) / cast(f32, max_cd);
+        render.set_color(g_ren, 255, 160, 30, 255);
+        draw(player_x - 15.0, py + 24.0, 30.0 * pct, 3.0);
+    }
+}
+
+fn render_game_over() as void {
+    // dark overlay
+    render.set_blend_mode(g_ren, render.BLEND_BLEND);
+    render.set_color(g_ren, 0, 0, 0, 180);
+    draw(0.0, 0.0, 800.0, 600.0);
+    render.set_blend_mode(g_ren, render.BLEND_NONE);
+
+    draw_text_color("GAME OVER", 230.0, 180.0, 340.0, 60.0, 220, 40, 40);
+
+    let is *u8 as stxt = str_concat("SCORE  ", 7, score);
+    let is i64 as slen = strlen(stxt);
+    draw_text(stxt, 300.0, 270.0, cast(f32, slen) * 16.0, 30.0);
+
+    let is *u8 as htxt = str_concat("RECORD  ", 8, hi_score);
+    let is i64 as hlen = strlen(htxt);
+    draw_text_color(htxt, 300.0, 310.0, cast(f32, hlen) * 16.0, 30.0, 255, 220, 50);
+
+    draw_text_color("PRESS R TO RESTART", 240.0, 400.0, 320.0, 24.0, 150, 150, 150);
+}
+
+fn render_wave_announce() as void {
+    if (wave_pause_t <= 0) { return; }
+    if (wave_pause_t > 60) {
+        let is *u8 as wtxt = str_concat("WAVE ", 5, wave);
+        let is i64 as wlen = strlen(wtxt);
+        draw_text_color(wtxt, 320.0, 270.0, cast(f32, wlen) * 22.0, 40.0, 100, 200, 255);
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// Main
+// ══════════════════════════════════════════════════════════
+fn main() as i32 {
+    // ── SDL init ──
+    let is bool as ok = init.init(init.VIDEO);
+    if (cast(i32, ok) == 0) { print("SDL init fail\n", 14); linux.exit(1); }
+    let is bool as tok = ttf.init();
+    if (cast(i32, tok) == 0) { print("TTF init fail\n", 14); init.quit(); linux.exit(1); }
+
+    let is *u8 as win = video.create_window("Caustic Spaceship", SCREEN_W, SCREEN_H, 0);
+    if (cast(i64, win) == 0) { print("win fail\n", 9); linux.exit(2); }
+    let is *u8 as ren = render.create_renderer(win);
+    if (cast(i64, ren) == 0) { print("ren fail\n", 9); linux.exit(3); }
+    g_ren = ren;
+
+    g_font = ttf.open_font("/usr/share/fonts/TTF/DejaVuSans-Bold.ttf", 24.0);
+    if (cast(i64, g_font) == 0) {
+        g_font = ttf.open_font("/usr/share/fonts/TTF/DejaVuSans.ttf", 24.0);
+    }
+    if (cast(i64, g_font) == 0) {
+        g_font = ttf.open_font("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24.0);
+    }
+
+    rng_state = timer.ticks();
+    load_record();
+    init_stars();
+    reset_game();
+    start_wave();
+
+    let is i32 as running with mut = 1;
+    let is *u8 as keys with mut = kb.get_state(cast(*i32, 0));
+
+    while (running == 1) {
+        frame = frame + 1;
+
+        // ── events ──
+        let is i32 as ev with mut = events.poll();
+        while (ev != 0) {
+            if (ev == events.QUIT) { running = 0; }
+            if (ev == events.WINDOW_CLOSE) { running = 0; }
+            ev = events.poll();
+        }
+
+        keys = kb.get_state(cast(*i32, 0));
+        if (pressed(keys, kb.SCANCODE_ESCAPE) != 0) { running = 0; }
+
+        // ── game over: wait for R ──
+        if (game_over == 1) {
+            if (pressed(keys, kb.SCANCODE_R) != 0) {
+                reset_game();
+                start_wave();
+            }
+        }
+
+        if (game_over == 0) {
+        // ══════════════════════════════════════════════════
+        // UPDATE
+        // ══════════════════════════════════════════════════
+
+        // ── input ──
+        if (pressed(keys, kb.SCANCODE_LEFT) != 0) {
+            player_x = player_x - cast(f32, PLAYER_SPEED);
+            if (player_x < 25.0) { player_x = 25.0; }
+        }
+        if (pressed(keys, kb.SCANCODE_RIGHT) != 0) {
+            player_x = player_x + cast(f32, PLAYER_SPEED);
+            if (player_x > 775.0) { player_x = 775.0; }
+        }
+        if (pressed(keys, kb.SCANCODE_SPACE) != 0) {
+            if (fire_cd == 0) {
+                let is i32 as did_fire with mut = 0;
+                if (pw_type == PW_DOUBLE) { did_fire = fire_double(); }
+                else { did_fire = fire_bullet(); }
+                if (did_fire == 1) {
+                    if (pw_type == PW_RAPID) { fire_cd = FIRE_CD_RAPID; }
+                    else { fire_cd = FIRE_CD_NORMAL; }
+                }
+            }
+        }
+        if (fire_cd > 0) { fire_cd = fire_cd - 1; }
+        if (invuln_t > 0) { invuln_t = invuln_t - 1; }
+
+        // ── powerup timer ──
+        if (pw_type != PW_NONE && pw_type != PW_SHIELD) {
+            pw_timer = pw_timer - 1;
+            if (pw_timer <= 0) { pw_type = PW_NONE; }
+        }
+
+        // ── wave pause ──
+        if (wave_pause_t > 0) {
+            wave_pause_t = wave_pause_t - 1;
+            if (wave_pause_t == 0) { advance_wave(); }
+        }
+
+        // ── update player bullets ──
+        let is i32 as bi with mut = 0;
+        while (bi < MAX_PBULLETS) {
+            let is i32 as boff = bi * 12;
+            if (get_i32(&pbullets, boff + 8) == 1) {
+                let is f32 as by = get_f32(&pbullets, boff + 4) - cast(f32, BULLET_SPEED);
+                set_f32(&pbullets, boff + 4, by);
+                if (by < 0.0 - 10.0) { set_i32(&pbullets, boff + 8, 0); }
+            }
+            bi = bi + 1;
+        }
+
+        // ── update enemy bullets ──
+        let is i32 as ebi with mut = 0;
+        while (ebi < MAX_EBULLETS) {
+            let is i32 as eboff = ebi * 12;
+            if (get_i32(&ebullets, eboff + 8) == 1) {
+                let is f32 as eby = get_f32(&ebullets, eboff + 4) + cast(f32, EBULLET_SPEED);
+                set_f32(&ebullets, eboff + 4, eby);
+                if (eby > 620.0) { set_i32(&ebullets, eboff + 8, 0); }
+            }
+            ebi = ebi + 1;
+        }
+
+        // ── spawn enemies ──
+        if (wave_pause_t == 0 && is_boss_wave() == 0) {
+            spawn_timer = spawn_timer + 1;
+            let is i32 as spawn_interval with mut = 50 - wave * 3;
+            if (spawn_interval < 15) { spawn_interval = 15; }
+            if (spawn_timer > spawn_interval) {
+                spawn_enemy();
+                spawn_timer = 0;
+            }
+        }
+
+        // ── update enemies ──
+        let is i32 as ei with mut = 0;
+        while (ei < MAX_ENEMIES) {
+            let is i32 as eoff = ei * 12;
+            if (get_i32(&enemies, eoff + 8) == 1) {
+                let is f32 as ey = get_f32(&enemies, eoff + 4) + cast(f32, enemy_speed);
+                set_f32(&enemies, eoff + 4, ey);
+                // enemy reached bottom — just despawn, no damage
+                if (ey > 600.0) {
+                    set_i32(&enemies, eoff + 8, 0);
+                    wave_killed = wave_killed + 1;
+                }
+            }
+            ei = ei + 1;
+        }
+
+        // ── update boss ──
+        if (boss_active == 1) {
+            // move
+            if (boss_dir == 1) {
+                boss_x = boss_x + 2.0;
+                if (boss_x > 740.0) { boss_dir = 0; }
+            } else {
+                boss_x = boss_x - 2.0;
+                if (boss_x < 60.0) { boss_dir = 1; }
+            }
+            // shoot
+            boss_shoot_cd = boss_shoot_cd - 1;
+            if (boss_shoot_cd <= 0) {
+                fire_enemy_bullet(boss_x, boss_y + 30.0);
+                boss_shoot_cd = 50 - wave;
+                if (boss_shoot_cd < 20) { boss_shoot_cd = 20; }
+            }
+        }
+
+        // ── update drops ──
+        let is i32 as di with mut = 0;
+        while (di < MAX_DROPS) {
+            let is i32 as doff = di * 16;
+            if (get_i32(&drops, doff + 12) == 1) {
+                let is f32 as dy = get_f32(&drops, doff + 4) + 2.0;
+                set_f32(&drops, doff + 4, dy);
+                if (dy > 620.0) { set_i32(&drops, doff + 12, 0); }
+                // player pickup
+                let is f32 as dx = get_f32(&drops, doff);
+                if (collides(dx - 8.0, dy - 8.0, 16.0, 16.0,
+                             player_x - 20.0, cast(f32, PLAYER_Y) - 20.0, 40.0, 40.0) == 1) {
+                    let is i32 as dtype = get_i32(&drops, doff + 8);
+                    set_i32(&drops, doff + 12, 0);
+                    if (dtype == PW_SHIELD) {
+                        pw_type = PW_SHIELD;
+                        has_shield = 1;
+                    } else {
+                        pw_type = dtype;
+                        pw_timer = POWERUP_TIME;
+                    }
+                }
+            }
+            di = di + 1;
+        }
+
+        // ── collision: player bullets vs enemies ──
+        bi = 0;
+        while (bi < MAX_PBULLETS) {
+            let is i32 as boff = bi * 12;
+            if (get_i32(&pbullets, boff + 8) == 1) {
+                let is f32 as bx = get_f32(&pbullets, boff);
+                let is f32 as by = get_f32(&pbullets, boff + 4);
+                // vs enemies
+                ei = 0;
+                while (ei < MAX_ENEMIES) {
+                    let is i32 as eoff = ei * 12;
+                    if (get_i32(&enemies, eoff + 8) == 1) {
+                        let is f32 as ex = get_f32(&enemies, eoff);
+                        let is f32 as ey = get_f32(&enemies, eoff + 4);
+                        if (collides(bx - 2.0, by, 4.0, 10.0,
+                                     ex - 15.0, ey - 15.0, 30.0, 30.0) == 1) {
+                            set_i32(&pbullets, boff + 8, 0);
+                            set_i32(&enemies, eoff + 8, 0);
+                            score = score + 10;
+                            wave_killed = wave_killed + 1;
+                            spawn_drop(ex, ey);
+                        }
+                    }
+                    ei = ei + 1;
+                }
+                // vs boss
+                if (boss_active == 1 && get_i32(&pbullets, boff + 8) == 1) {
+                    if (collides(bx - 2.0, by, 4.0, 10.0,
+                                 boss_x - 40.0, boss_y - 25.0, 80.0, 50.0) == 1) {
+                        set_i32(&pbullets, boff + 8, 0);
+                        boss_hp = boss_hp - 1;
+                        if (boss_hp <= 0) {
+                            boss_active = 0;
+                            spawn_drop(boss_x, boss_y);
+                            spawn_drop(boss_x - 20.0, boss_y);
+                        }
+                    }
+                }
+            }
+            bi = bi + 1;
+        }
+
+        // ── collision: enemy bullets vs player ──
+        ebi = 0;
+        while (ebi < MAX_EBULLETS) {
+            let is i32 as eboff = ebi * 12;
+            if (get_i32(&ebullets, eboff + 8) == 1) {
+                let is f32 as ebx = get_f32(&ebullets, eboff);
+                let is f32 as eby = get_f32(&ebullets, eboff + 4);
+                if (collides(ebx - 3.0, eby, 6.0, 10.0,
+                             player_x - 18.0, cast(f32, PLAYER_Y) - 20.0, 36.0, 40.0) == 1) {
+                    set_i32(&ebullets, eboff + 8, 0);
+                    player_hit();
+                }
+            }
+            ebi = ebi + 1;
+        }
+
+        // ── collision: enemies vs player ──
+        ei = 0;
+        while (ei < MAX_ENEMIES) {
+            let is i32 as eoff = ei * 12;
+            if (get_i32(&enemies, eoff + 8) == 1) {
+                let is f32 as ex = get_f32(&enemies, eoff);
+                let is f32 as ey = get_f32(&enemies, eoff + 4);
+                if (collides(ex - 15.0, ey - 15.0, 30.0, 30.0,
+                             player_x - 18.0, cast(f32, PLAYER_Y) - 20.0, 36.0, 40.0) == 1) {
+                    set_i32(&enemies, eoff + 8, 0);
+                    wave_killed = wave_killed + 1;
+                    player_hit();
+                }
+            }
+            ei = ei + 1;
+        }
+
+        // ── check wave complete ──
+        check_wave_complete();
+
+        // ── update stars ──
+        let is i32 as si with mut = 0;
+        while (si < MAX_STARS) {
+            let is i32 as soff = si * 12;
+            let is f32 as sy with mut = get_f32(&stars, soff + 4) + get_f32(&stars, soff + 8);
+            if (sy > 600.0) {
+                sy = 0.0;
+                set_f32(&stars, soff, cast(f32, rng() % 800));
+            }
+            set_f32(&stars, soff + 4, sy);
+            si = si + 1;
+        }
+
+        } // end if game_over == 0
+
+        // ══════════════════════════════════════════════════
+        // RENDER
+        // ══════════════════════════════════════════════════
+
+        render.set_color(ren, 5, 5, 15, 255);
+        render.clear(ren);
+
+        // stars
+        render.set_color(ren, 200, 200, 255, 180);
+        let is i32 as si with mut = 0;
+        while (si < MAX_STARS) {
+            let is i32 as soff = si * 12;
+            draw(get_f32(&stars, soff), get_f32(&stars, soff + 4), 2.0, 2.0);
+            si = si + 1;
+        }
+
+        let is f32 as py = cast(f32, PLAYER_Y);
+
+        // player (blink during invuln)
+        if (invuln_t == 0 || frame % 4 < 2) {
+            // shield aura
+            if (has_shield == 1) {
+                render.set_color(ren, 50, 220, 100, 80);
+                draw(player_x - 26.0, py - 28.0, 52.0, 52.0);
+            }
+            // body
+            render.set_color(ren, 60, 180, 255, 255);
+            draw(player_x - 12.0, py - 15.0, 24.0, 30.0);
+            // cockpit
+            render.set_color(ren, 100, 220, 255, 255);
+            draw(player_x - 4.0, py - 25.0, 8.0, 12.0);
+            // wings
+            render.set_color(ren, 40, 140, 220, 255);
+            draw(player_x - 22.0, py, 44.0, 8.0);
+            // engine glow
+            render.set_color(ren, 255, 140, 30, 255);
+            draw(player_x - 5.0, py + 15.0, 10.0, 6.0);
+        }
+
+        // player bullets
+        render.set_color(ren, 255, 255, 80, 255);
+        let is i32 as bi with mut = 0;
+        while (bi < MAX_PBULLETS) {
+            let is i32 as boff = bi * 12;
+            if (get_i32(&pbullets, boff + 8) == 1) {
+                draw(get_f32(&pbullets, boff) - 2.0, get_f32(&pbullets, boff + 4), 4.0, 10.0);
+            }
+            bi = bi + 1;
+        }
+
+        // enemy bullets
+        render.set_color(ren, 255, 60, 60, 255);
+        let is i32 as ebi with mut = 0;
+        while (ebi < MAX_EBULLETS) {
+            let is i32 as eboff = ebi * 12;
+            if (get_i32(&ebullets, eboff + 8) == 1) {
+                draw(get_f32(&ebullets, eboff) - 3.0, get_f32(&ebullets, eboff + 4), 6.0, 10.0);
+            }
+            ebi = ebi + 1;
+        }
+
+        // enemies
+        let is i32 as ei with mut = 0;
+        while (ei < MAX_ENEMIES) {
+            let is i32 as eoff = ei * 12;
+            if (get_i32(&enemies, eoff + 8) == 1) {
+                let is f32 as ex = get_f32(&enemies, eoff);
+                let is f32 as ey = get_f32(&enemies, eoff + 4);
+                render.set_color(ren, 220, 40, 40, 255);
+                draw(ex - 15.0, ey - 12.0, 30.0, 24.0);
+                render.set_color(ren, 255, 80, 80, 255);
+                draw(ex - 8.0, ey - 18.0, 16.0, 8.0);
+            }
+            ei = ei + 1;
+        }
+
+        // boss
+        if (boss_active == 1) {
+            // body
+            render.set_color(ren, 180, 0, 180, 255);
+            draw(boss_x - 35.0, boss_y - 20.0, 70.0, 40.0);
+            // accent
+            render.set_color(ren, 220, 50, 220, 255);
+            draw(boss_x - 20.0, boss_y - 28.0, 40.0, 12.0);
+            // wings
+            render.set_color(ren, 140, 0, 140, 255);
+            draw(boss_x - 45.0, boss_y - 5.0, 90.0, 10.0);
+            // HP bar background
+            render.set_color(ren, 60, 60, 60, 255);
+            draw(boss_x - 35.0, boss_y - 38.0, 70.0, 6.0);
+            // HP bar fill
+            let is i32 as max_hp = 10 + wave * 2;
+            let is f32 as hp_pct = cast(f32, boss_hp) / cast(f32, max_hp);
+            render.set_color(ren, 50, 220, 50, 255);
+            draw(boss_x - 35.0, boss_y - 38.0, 70.0 * hp_pct, 6.0);
+        }
+
+        // drops
+        let is i32 as di with mut = 0;
+        while (di < MAX_DROPS) {
+            let is i32 as doff = di * 16;
+            if (get_i32(&drops, doff + 12) == 1) {
+                let is f32 as dx = get_f32(&drops, doff);
+                let is f32 as dy = get_f32(&drops, doff + 4);
+                let is i32 as dtype = get_i32(&drops, doff + 8);
+                if (dtype == PW_DOUBLE) { render.set_color(ren, 60, 120, 255, 255); }
+                if (dtype == PW_RAPID) { render.set_color(ren, 255, 220, 50, 255); }
+                if (dtype == PW_SHIELD) { render.set_color(ren, 50, 220, 100, 255); }
+                draw(dx - 6.0, dy - 6.0, 12.0, 12.0);
+                // inner
+                render.set_color(ren, 255, 255, 255, 200);
+                draw(dx - 3.0, dy - 3.0, 6.0, 6.0);
+            }
+            di = di + 1;
+        }
+
+        // HUD
+        render_hud();
+
+        // wave announce
+        render_wave_announce();
+
+        // game over overlay
+        if (game_over == 1) {
+            render_game_over();
+        }
+
+        render.present(ren);
+        timer.delay(16);
+    }
+
+    // ── cleanup ──
+    if (cast(i64, g_font) != 0) { ttf.close_font(g_font); }
+    render.destroy(ren);
+    video.destroy_window(win);
+    ttf.quit();
+    init.quit();
+    linux.exit(0);
+    return 0;
+}

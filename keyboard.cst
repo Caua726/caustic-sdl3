@@ -1,7 +1,7 @@
 extern fn SDL_GetKeyboardState(numkeys as *i32) as *u8;
 extern fn SDL_GetKeyboardFocus() as *u8;
 extern fn SDL_GetKeyName(key as i32) as *u8;
-extern fn SDL_IsTextInputActive(window as *u8) as i32;
+extern fn SDL_TextInputActive(window as *u8) as bool;
 
 let is i32 as SCANCODE_A with imut = 4;
 let is i32 as SCANCODE_B with imut = 5;
@@ -62,4 +62,4 @@ let is i32 as SCANCODE_RALT with imut = 230;
 fn get_state(numkeys as *i32) as *u8 { return SDL_GetKeyboardState(numkeys); }
 fn get_focus() as *u8 { return SDL_GetKeyboardFocus(); }
 fn key_name(key as i32) as *u8 { return SDL_GetKeyName(key); }
-fn is_text_input_active(window as *u8) as i32 { return SDL_IsTextInputActive(window); }
+fn is_text_input_active(window as *u8) as bool { return SDL_TextInputActive(window); }
