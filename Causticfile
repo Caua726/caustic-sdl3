@@ -35,15 +35,21 @@ target "spaceship"    { src "examples/spaceship.cst"    out "build/spaceship" }
 // installed SDL3. The examples are built, never run — they open a window, and a
 // test that needs a display is a test that does not run in CI.
 script "test" {
-    "caustic-mk build run"
+    "mkdir -p build"
+    "caustic tests/run.cst -o build/run"
     "./build/run"
 }
 
-// The declarations only. Linking additionally needs SDL3 installed, which says
-// nothing about this repository when it is missing — and the declarations are
-// the part that rots when the C API moves.
+// The declarations only, for a machine without SDL3 installed.
+//
+// The runner is compiled here rather than declared as a target, and that is the
+// whole point: `system "SDL3"` is project-wide, so every target links -lSDL3
+// whether it uses it or not. The runner uses none of SDL — it spawns the
+// compiler — but as a target it came out dynamically linked against libSDL3.so
+// and would not even load without it. Compiling it directly leaves it static.
 script "test-ci" {
-    "caustic-mk build run"
+    "mkdir -p build"
+    "caustic tests/run.cst -o build/run"
     "./build/run --no-link"
 }
 
