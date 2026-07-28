@@ -35,8 +35,16 @@ target "spaceship"    { src "examples/spaceship.cst"    out "build/spaceship" }
 // installed SDL3. The examples are built, never run — they open a window, and a
 // test that needs a display is a test that does not run in CI.
 script "test" {
-    "caustic tests/run.cst -o build/run"
+    "caustic-mk build run"
     "./build/run"
+}
+
+// The declarations only. Linking additionally needs SDL3 installed, which says
+// nothing about this repository when it is missing — and the declarations are
+// the part that rots when the C API moves.
+script "test-ci" {
+    "caustic-mk build run"
+    "./build/run --no-link"
 }
 
 script "clean" {

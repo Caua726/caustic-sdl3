@@ -115,11 +115,36 @@ fn build_example(cc as *u8, name as *u8, src as *u8) as i32 {
     return 0;
 }
 
+fn streq(a as *u8, b as *u8) as i64 {
+    let is i64 as i with mut = 0;
+    while (a[i] != 0 && b[i] != 0) {
+        if (a[i] != b[i]) { return 0; }
+        i = i + 1;
+    }
+    if (a[i] == 0 && b[i] == 0) { return 1; }
+    return 0;
+}
+
 fn main(argc as i64, argv as *u8) as i32 {
     env.init(argc, argv);
     let is [4096]u8 as cc;
     if (which("caustic", cast(*u8, &cc)) == 0) { io.write_str(1, "caustic not found in PATH\n"); return 2; }
     let is *u8 as ccp = cast(*u8, &cc);
+
+    // `--no-link` stops after the declarations, without linking the examples.
+    // The declarations are the part that rots; linking additionally needs SDL3
+    // installed, which a CI runner may not have and which says nothing about
+    // this repository when it is missing.
+    let is i64 as no_link with mut = 0;
+    let is i64 as ai with mut = 1;
+    while (ai < env.argc()) {
+        if (streq(env.argv(ai), "--no-link") == 1) { no_link = 1; }
+        else {
+            io.write_str(1, "usage: run [--no-link]\n");
+            return 2;
+        }
+        ai = ai + 1;
+    }
     silence_stderr();
 
     let is i64 as fail with mut = 0;
@@ -148,9 +173,11 @@ fn main(argc as i64, argv as *u8) as i32 {
     fail = fail + cast(i64, compile_lib(ccp, "platform.cst"));
 
     // ── the examples, linked against the real SDL3 ────────────────
-    fail = fail + cast(i64, build_example(ccp, "hello_window", "examples/hello_window.cst"));
-    fail = fail + cast(i64, build_example(ccp, "draw_rects",   "examples/draw_rects.cst"));
-    fail = fail + cast(i64, build_example(ccp, "spaceship",    "examples/spaceship.cst"));
+    if (no_link == 0) {
+        fail = fail + cast(i64, build_example(ccp, "hello_window", "examples/hello_window.cst"));
+        fail = fail + cast(i64, build_example(ccp, "draw_rects",   "examples/draw_rects.cst"));
+        fail = fail + cast(i64, build_example(ccp, "spaceship",    "examples/spaceship.cst"));
+    }
 
     if (fail == 0) { io.write_str(1, "all green\n"); return 0; }
     io.write_str(1, "FAILURES: "); io.write_int(1, fail); io.write_str(1, "\n");
