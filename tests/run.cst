@@ -1,0 +1,158 @@
+// =======================================================
+// tests/run.cst — the check, in Caustic.
+//
+// A binding library has one failure mode that matters: the C API moved and the
+// declarations here did not. Nothing catches that except compiling every module
+// on its own, the way a consumer takes it — which is what this does, for all 21
+// of them, plus building each example.
+//
+// It is not hypothetical. `keyboard.cst` had to be fixed for an SDL3 function
+// rename, and nothing in this repository would have reported it.
+//
+// Portable: only the std portability facades (process / io / os / env).
+// Run from the repo root:  caustic-mk run test
+// =======================================================
+
+use "std/process.cst" as proc;
+use "std/io.cst"       as io;
+use "std/os.cst"       as os;
+use "std/env.cst"      as env;
+use "std/string.cst"   as str;
+
+fn app(buf as *u8, pos as i64, s as *u8) as i64 {
+    let is i64 as p with mut = pos;
+    let is i64 as i with mut = 0;
+    while (s[i] != 0) { buf[p] = s[i]; p = p + 1; i = i + 1; }
+    return p;
+}
+fn slen(s as *u8) as i64 {
+    let is i64 as n with mut = 0;
+    while (s[n] != 0) { n = n + 1; }
+    return n;
+}
+fn label(kind as *u8, name as *u8) as void {
+    io.write_str(1, kind);
+    io.write_str(1, name);
+    let is i64 as pad with mut = 20 - slen(name);
+    while (pad > 0) { io.write_str(1, " "); pad = pad - 1; }
+}
+
+// Resolve `file` against $PATH into out (proc.capture runs via execve, which
+// needs a real path). Tries a bare name and a .exe suffix. Returns 1 if found.
+fn which(file as *u8, out as *u8) as i32 {
+    let is *u8 as path = env.getenv("PATH");
+    if (cast(i64, path) == 0) { return 0; }
+    let is i64 as i with mut = 0;
+    while (path[i] != 0) {
+        let is i64 as start = i;
+        while (path[i] != 0 && path[i] != 58 && path[i] != 59) { i = i + 1; }   // ':' or ';'
+        let is i64 as q with mut = 0;
+        let is i64 as k with mut = start;
+        while (k < i) { out[q] = path[k]; q = q + 1; k = k + 1; }
+        out[q] = cast(u8, 47); q = q + 1;                                       // '/'
+        q = app(out, q, file);
+        out[q] = cast(u8, 0);
+        if (io.exists(out) == 1) { return 1; }
+        out[q] = cast(u8, 46); out[q + 1] = cast(u8, 101);
+        out[q + 2] = cast(u8, 120); out[q + 3] = cast(u8, 101); out[q + 4] = cast(u8, 0);   // ".exe"
+        if (io.exists(out) == 1) { return 1; }
+        if (path[i] != 0) { i = i + 1; }
+    }
+    return 0;
+}
+
+fn silence_stderr() as void {
+    let is *u8 as nul with mut = "/dev/null";
+    if (os.current() == os.OS_WINDOWS) { return; }
+    io._close_fd(2);
+    io._open_write(nul);
+}
+
+// `caustic -c foo.cst` always emits `foo.cst.s`, so the artifact's existence is
+// the exit status. Removed on both sides: before, so a stale one cannot be read
+// as success; after, so a green run leaves the tree as it found it.
+fn compile_lib(cc as *u8, src as *u8) as i32 {
+    let is [512]u8 as art;
+    let is i64 as p with mut = app(cast(*u8, &art), 0, src);
+    p = app(cast(*u8, &art), p, ".s");
+    art[p] = cast(u8, 0);
+
+    label("[bind] ", src);
+    io.unlink(cast(*u8, &art));
+
+    let is [5]i64 as cav;
+    cav[0] = cast(i64, "caustic"); cav[1] = cast(i64, "-q");
+    cav[2] = cast(i64, "-c"); cav[3] = cast(i64, src); cav[4] = 0;
+    let is str.String as _log = proc.capture(cc, cast(*u8, &cav));
+
+    if (io.exists(cast(*u8, &art)) == 0) { io.write_str(1, "COMPILE FAIL\n"); return 1; }
+    io.unlink(cast(*u8, &art));
+    io.write_str(1, "ok\n");
+    return 0;
+}
+
+// The examples link against the real SDL3, so this also proves the system
+// library is present and the symbols resolve. It does not run them: they open
+// a window, and a test that needs a display is a test that does not run in CI.
+fn build_example(cc as *u8, name as *u8, src as *u8) as i32 {
+    let is [512]u8 as out;
+    let is i64 as p with mut = app(cast(*u8, &out), 0, "build/");
+    p = app(cast(*u8, &out), p, name);
+    out[p] = cast(u8, 0);
+
+    label("[ex]   ", name);
+    io.unlink(cast(*u8, &out));
+
+    let is [8]i64 as cav;
+    cav[0] = cast(i64, "caustic"); cav[1] = cast(i64, "-q");
+    cav[2] = cast(i64, src);
+    cav[3] = cast(i64, "-o"); cav[4] = cast(i64, cast(*u8, &out));
+    cav[5] = cast(i64, "-lSDL3"); cav[6] = cast(i64, "-lSDL3_ttf"); cav[7] = 0;
+    let is str.String as _log = proc.capture(cc, cast(*u8, &cav));
+
+    if (io.exists(cast(*u8, &out)) == 0) { io.write_str(1, "LINK FAIL\n"); return 1; }
+    io.write_str(1, "ok\n");
+    return 0;
+}
+
+fn main(argc as i64, argv as *u8) as i32 {
+    env.init(argc, argv);
+    let is [4096]u8 as cc;
+    if (which("caustic", cast(*u8, &cc)) == 0) { io.write_str(1, "caustic not found in PATH\n"); return 2; }
+    let is *u8 as ccp = cast(*u8, &cc);
+    silence_stderr();
+
+    let is i64 as fail with mut = 0;
+
+    // ── every binding module, on its own ──────────────────────────
+    fail = fail + cast(i64, compile_lib(ccp, "sdl3.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "init.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "video.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "render.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "surface.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "windowsurface.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "gpu.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "events.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "keyboard.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "mouse.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "touch.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "gamepad.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "haptic.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "audio.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "ttf.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "rect.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "timer.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "clipboard.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "filesystem.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "messagebox.cst"));
+    fail = fail + cast(i64, compile_lib(ccp, "platform.cst"));
+
+    // ── the examples, linked against the real SDL3 ────────────────
+    fail = fail + cast(i64, build_example(ccp, "hello_window", "examples/hello_window.cst"));
+    fail = fail + cast(i64, build_example(ccp, "draw_rects",   "examples/draw_rects.cst"));
+    fail = fail + cast(i64, build_example(ccp, "spaceship",    "examples/spaceship.cst"));
+
+    if (fail == 0) { io.write_str(1, "all green\n"); return 0; }
+    io.write_str(1, "FAILURES: "); io.write_int(1, fail); io.write_str(1, "\n");
+    return 1;
+}

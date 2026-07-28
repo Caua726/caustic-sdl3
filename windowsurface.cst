@@ -1,0 +1,19 @@
+// windowsurface.cst — SDL3 software window-surface path (no renderer / no GPU).
+//
+// Lets a program own the window's CPU pixel buffer directly: get the surface,
+// write pixels into it, then publish with update_window_surface. This is the
+// "dumb framebuffer in a window" path — the same shape as a raw framebuffer.
+// Requires that NO renderer is created on the window (SDL rule).
+
+extern fn SDL_GetWindowSurface(window as *u8) as *u8;
+extern fn SDL_UpdateWindowSurface(window as *u8) as bool;
+
+fn get_window_surface(window as *u8) as *u8 { return SDL_GetWindowSurface(window); }
+fn update_window_surface(window as *u8) as bool { return SDL_UpdateWindowSurface(window); }
+
+// SDL_Surface field accessors (SDL3 layout; SDL_SurfaceFlags = Uint32):
+//   flags u32 @0 | format @4 | w @8 | h @12 | pitch @16 | pixels (void*) @24
+fn surf_w(s as *u8) as i32     { let is *i32 as p = cast(*i32, cast(i64, s) + 8);  return *p; }
+fn surf_h(s as *u8) as i32     { let is *i32 as p = cast(*i32, cast(i64, s) + 12); return *p; }
+fn surf_pitch(s as *u8) as i32 { let is *i32 as p = cast(*i32, cast(i64, s) + 16); return *p; }
+fn surf_pixels(s as *u8) as *u8 { let is *i64 as p = cast(*i64, cast(i64, s) + 24); return cast(*u8, *p); }

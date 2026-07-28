@@ -5,7 +5,8 @@ extern fn SDL_PutAudioStreamData(stream as *u8, data as *u8, len as i32) as i32;
 extern fn SDL_DestroyAudioStream(stream as *u8) as void;
 
 // Constants
-let is i32 as AUDIO_DEVICE_DEFAULT_PLAYBACK with imut = 0 - 1;
+// `0 - 1` is i64, and assigning it to an i32 is a hard error, not a narrowing.
+let is i32 as AUDIO_DEVICE_DEFAULT_PLAYBACK with imut = cast(i32, 0 - 1);
 let is i32 as AUDIO_S16LE with imut = 32784;
 
 // Convenience: open default device, no callback (queue-based)

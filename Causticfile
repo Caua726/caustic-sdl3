@@ -1,14 +1,52 @@
-name "sdl3"
+name "caustic-sdl3"
 version "0.1.0"
+author "Cauã Alvarenga Neves"
+
+// caustic-sdl3 — SDL3 bindings for Caustic.
+//
+//   caustic-mk run test           every binding compiles, every example links
+//   caustic-mk build spaceship    the game, to run by hand
+//   caustic-mk run clean          build artifacts
+//
+// `system` names a library the linker is given as -l<name>. It is collected
+// transitively, so a project that depends on this one links SDL3 without
+// repeating either line.
+//
+// The name was "sdl3"; it is the repository's name now, because a `depend` is
+// resolved into a directory named after the dependency and the qualified import
+// is `use "caustic-sdl3/video.cst"`. A manifest whose name disagrees with the
+// directory it is imported through is a trap for whoever writes the import.
 system "SDL3"
 system "SDL3_ttf"
 
-target "hello_window" {
-    src "examples/hello_window.cst"
-    out "hello_window"
+// ── Targets ──────────────────────────────────────────────────────────
+
+target "run" { src "tests/run.cst" out "build/run" }
+
+target "hello_window" { src "examples/hello_window.cst" out "build/hello_window" }
+target "draw_rects"   { src "examples/draw_rects.cst"   out "build/draw_rects" }
+target "spaceship"    { src "examples/spaceship.cst"    out "build/spaceship" }
+
+// ── Scripts ──────────────────────────────────────────────────────────
+
+// A binding library has one failure mode worth testing for: the C API moved and
+// the declarations here did not. Compiling all 21 modules on their own catches
+// it, and linking the examples proves the symbols actually resolve against the
+// installed SDL3. The examples are built, never run — they open a window, and a
+// test that needs a display is a test that does not run in CI.
+script "test" {
+    "caustic tests/run.cst -o build/run"
+    "./build/run"
 }
 
-target "draw_rects" {
-    src "examples/draw_rects.cst"
-    out "draw_rects"
+script "clean" {
+    "rm -rf .caustic build"
+    "echo 'clean: build artifacts removed'"
+}
+
+script "distclean" {
+    "caustic-mk run clean"
+    "find . -name '*.cst.s' -delete"
+    "find . -name '*.cst.s.o' -delete"
+    "echo 'distclean: generated assembly and objects removed too'"
 }
